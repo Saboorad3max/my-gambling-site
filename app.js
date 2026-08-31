@@ -66,7 +66,6 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById("auth-container").classList.add("hidden");
     document.getElementById("app-container").classList.remove("hidden");
 
-    // Listen to current user balance live
     onSnapshot(doc(db, "users", user.uid), (docSnap) => {
       userData = docSnap.data();
       document.getElementById("display-user").innerText = userData.username;
@@ -87,7 +86,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// --- TAB SYSTEM NAVIGATION ---
+// --- TAB NAVIGATION ---
 document.querySelectorAll(".tab-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -110,7 +109,7 @@ window.playCoinflip = async (choice) => {
   document.getElementById("coinflip-result").innerText = won ? `🎉 You Won! Flipped ${result}.` : `❌ You Lost! Flipped ${result}.`;
 };
 
-// --- LIVE CHAT & /tip COMMAND ---
+// --- CHAT & TIP ---
 const chatInput = document.getElementById("chat-input");
 document.getElementById("btn-send-chat").addEventListener("click", sendMessage);
 
@@ -145,7 +144,6 @@ function listenChat() {
   });
 }
 
-// TIP MODAL ACTIONS
 document.getElementById("btn-close-tip").onclick = () => document.getElementById("tip-modal").classList.add("hidden");
 document.getElementById("btn-confirm-tip").onclick = async () => {
   const recipientName = document.getElementById("tip-recipient").value.trim();
@@ -191,54 +189,44 @@ function loadStore() {
       const item = d.data();
       const card = document.createElement("div");
       card.className = "store-card";
-      card.style.display = "flex";
-      card.style.flexDirection = "column";
-      card.style.alignItems = "stretch";
-      card.style.padding = "15px";
-      card.style.border = "1px solid #374151";
-      card.style.borderRadius = "8px";
-      card.style.marginBottom = "10px";
-      card.style.backgroundColor = "#111827";
       
       card.innerHTML = `
-        <div style="margin-bottom: 8px;">
-          <h4 style="margin:0; font-size:1.1em; color:#fff;">${item.name}</h4>
-          <p style="margin: 2px 0; color: #9ca3af; font-size: 0.9em;">Rate: <strong style="color:#3b82f6;">${item.cost} Coins</strong> / unit</p>
+        <div class="card-header">
+          <h4 class="item-title">${item.name}</h4>
+          <p class="item-rate">Rate: <strong class="text-blue">${item.cost} Coins</strong> / unit</p>
         </div>
         
-        <div style="display:flex; gap: 5px; margin-bottom: 8px;">
-          <input type="number" class="coin-input" placeholder="e.g. 70" min="${item.cost}" style="flex:1; padding: 8px; border-radius:4px; border:1px solid #4b5563; background:#1f2937; color:#fff;">
-          <button type="button" class="btn-quick-add" data-add="10" style="padding: 4px 8px; font-size: 0.8em; background: #374151; color: #fff; border: none; border-radius: 4px; cursor: pointer;">+10</button>
-          <button type="button" class="btn-quick-add" data-add="50" style="padding: 4px 8px; font-size: 0.8em; background: #374151; color: #fff; border: none; border-radius: 4px; cursor: pointer;">+50</button>
+        <div class="input-group">
+          <input type="number" class="coin-input" placeholder="e.g. 70" min="${item.cost}">
+          <button type="button" class="btn-quick-add" data-add="10">+10</button>
+          <button type="button" class="btn-quick-add" data-add="50">+50</button>
         </div>
 
-        <!-- Hidden container by default -->
-        <div class="calc-display-box" style="display: none; background: #0b0f19; padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 10px; border: 1px dashed #4b5563;">
-          <span style="font-size:0.8em; color:#9ca3af;">Calculated Output:</span>
-          <div class="calc-output" style="font-size: 1.05em; font-weight: bold; color: #10b981; margin-top: 3px;"></div>
+        <div class="calc-display-box hidden">
+          <span class="calc-label">Calculated Output:</span>
+          <div class="calc-output"></div>
         </div>
 
-        <button class="claim-btn" style="width: 100%; padding: 10px; background: #2563eb; color: #fff; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-top: auto;">Withdraw Time / Item</button>`;
+        <button class="claim-btn">Withdraw Time / Item</button>`;
 
       const input = card.querySelector(".coin-input");
       const box = card.querySelector(".calc-display-box");
       const output = card.querySelector(".calc-output");
       const claimBtn = card.querySelector(".claim-btn");
 
-      // Dynamic calculation toggle
       const calculateTime = () => {
         const coinsSpent = parseInt(input.value);
 
         if (isNaN(coinsSpent) || coinsSpent <= 0) {
-          box.style.display = "none";
+          box.classList.add("hidden");
           return;
         }
 
-        box.style.display = "block";
+        box.classList.remove("hidden");
 
         if (coinsSpent < item.cost) {
           output.innerText = `Min required: ${item.cost} coins`;
-          output.style.color = "#ef4444";
+          output.className = "calc-output text-red";
           return;
         }
 
@@ -247,7 +235,7 @@ function loadStore() {
         const unitLabel = isPerMin ? "min" : "units/matches";
 
         output.innerText = `You get: ${quantity} ${unitLabel}`;
-        output.style.color = "#10b981";
+        output.className = "calc-output text-green";
       };
 
       input.addEventListener("input", calculateTime);
