@@ -1,9 +1,9 @@
-/* --- BASE RESET & VARS --- */
+/* --- RESET & GLOBAL STYLES --- */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -12,36 +12,52 @@ body {
   color: #f3f4f6;
   padding: 12px;
   min-height: 100vh;
-  display: flex;
-  justify-content: center;
 }
 
 #app-container, #auth-container {
   width: 100%;
-  max-width: 900px;
+  max-width: 850px;
   margin: 0 auto;
 }
 
-/* --- RESPONSIVE HEADER & TOP BAR --- */
+/* --- AUTH / LOGIN PAGE --- */
+#auth-container {
+  background-color: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  padding: 24px 16px;
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#auth-container h2 {
+  font-size: 1.4rem;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+/* --- HEADER & USER INFO BAR --- */
 header, .top-bar {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: #111827;
+  background-color: #111827;
   border: 1px solid #1f2937;
-  padding: 16px;
+  padding: 14px 16px;
   border-radius: 12px;
   margin-bottom: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
 }
 
 .logo-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   font-size: 1.3rem;
   font-weight: 700;
   color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .user-info {
@@ -50,6 +66,7 @@ header, .top-bar {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  width: 100%;
   padding-top: 10px;
   border-top: 1px solid #1f2937;
 }
@@ -62,29 +79,30 @@ header, .top-bar {
 }
 
 .balance-pill {
-  background: #2563eb;
+  background-color: #2563eb;
   color: #ffffff;
   padding: 4px 10px;
   border-radius: 20px;
   font-weight: 600;
   font-size: 0.9rem;
+  display: inline-block;
 }
 
 /* --- BUTTONS & INPUTS --- */
 button, .btn {
-  padding: 10px 16px;
+  padding: 10px 14px;
   border-radius: 8px;
   border: none;
   font-weight: 600;
   cursor: pointer;
   font-size: 0.9rem;
-  transition: all 0.2s ease;
   background-color: #2563eb;
   color: #ffffff;
+  transition: opacity 0.2s ease;
 }
 
 button:active {
-  transform: scale(0.98);
+  opacity: 0.8;
 }
 
 #btn-logout, .btn-danger {
@@ -92,11 +110,7 @@ button:active {
   color: #ffffff;
 }
 
-#btn-logout:hover, .btn-danger:hover {
-  background-color: #b91c1c;
-}
-
-input[type="text"], input[type="password"], input[type="number"] {
+input[type="text"], input[type="password"], input[type="number"], .coin-input {
   width: 100%;
   padding: 10px 12px;
   border-radius: 8px;
@@ -109,21 +123,15 @@ input[type="text"], input[type="password"], input[type="number"] {
 
 input:focus {
   border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
-/* --- NAVIGATION TABS --- */
-.tabs-nav, .tab-container {
+/* --- TAB NAVIGATION --- */
+.tabs-nav {
   display: flex;
   gap: 8px;
   overflow-x: auto;
   padding-bottom: 8px;
   margin-bottom: 16px;
-  scrollbar-width: none; /* Firefox */
-}
-
-.tabs-nav::-webkit-scrollbar {
-  display: none; /* Safari/Chrome */
 }
 
 .tab-btn {
@@ -140,7 +148,7 @@ input:focus {
   border-color: #2563eb;
 }
 
-/* --- TAB PANELS & CARDS --- */
+/* --- TAB CONTENT PANELS --- */
 .tab-content {
   display: none;
 }
@@ -149,7 +157,7 @@ input:focus {
   display: block;
 }
 
-/* Store Cards Grid: 1 Column on Mobile, Auto-Grid on PC */
+/* --- STORE CARDS GRID --- */
 #store-list {
   display: grid;
   grid-template-columns: 1fr;
@@ -157,15 +165,77 @@ input:focus {
 }
 
 .store-card {
-  background: #111827;
+  background-color: #111827;
   border: 1px solid #1f2937;
   border-radius: 12px;
   padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-/* --- LIVE CHAT CONTAINER --- */
+.card-header {
+  margin-bottom: 4px;
+}
+
+.item-title {
+  margin: 0;
+  font-size: 1.1em;
+  color: #fff;
+}
+
+.item-rate {
+  margin: 2px 0 0 0;
+  color: #9ca3af;
+  font-size: 0.9em;
+}
+
+.input-group {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-quick-add {
+  padding: 6px 12px;
+  font-size: 0.85em;
+  background-color: #374151;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+}
+
+.calc-display-box {
+  background-color: #0b0f19;
+  padding: 10px;
+  border-radius: 6px;
+  text-align: center;
+  border: 1px dashed #374151;
+}
+
+.calc-label {
+  font-size: 0.8em;
+  color: #9ca3af;
+}
+
+.calc-output {
+  font-size: 1.05em;
+  font-weight: bold;
+  margin-top: 3px;
+}
+
+.claim-btn {
+  width: 100%;
+  padding: 10px;
+  background-color: #2563eb;
+  color: #fff;
+  font-weight: bold;
+  border-radius: 6px;
+  margin-top: auto;
+}
+
+/* --- CHAT --- */
 #chat-messages {
-  height: 250px;
+  height: 280px;
   overflow-y: auto;
   background-color: #0b0f19;
   border: 1px solid #1f2937;
@@ -190,20 +260,17 @@ input:focus {
   gap: 8px;
 }
 
-/* --- AUTH & MODALS --- */
-#auth-container, .modal-content {
-  background-color: #111827;
-  border: 1px solid #1f2937;
-  padding: 20px;
-  border-radius: 12px;
-}
+/* --- UTILITY CLASSES --- */
+.text-blue { color: #3b82f6; }
+.text-green { color: #10b981; }
+.text-red { color: #ef4444; }
 
 .hidden {
   display: none !important;
 }
 
-/* --- PC & TABLET RESPONSIVE LAYOUT (Width > 640px) --- */
-@media (min-width: 640px) {
+/* --- DESKTOP & LARGER SCREENS (PC) --- */
+@media (min-width: 600px) {
   header, .top-bar {
     flex-direction: row;
     align-items: center;
@@ -211,16 +278,12 @@ input:focus {
   }
 
   .user-info {
+    width: auto;
     padding-top: 0;
     border-top: none;
-    width: auto;
   }
 
   #store-list {
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  }
-
-  #chat-messages {
-    height: 350px;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   }
 }
