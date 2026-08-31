@@ -32,8 +32,9 @@ document.getElementById("btn-signup")?.addEventListener("click", async () => {
     const res = await createUserWithEmailAndPassword(auth, email, password);
     const isAdmin = email.toLowerCase() === "saboorezz@gmail.com";
     
+    // Set starting balance to 0 for all new accounts
     await setDoc(doc(db, "users", res.user.uid), {
-      email, username, balance: 100, isAdmin
+      email, username, balance: 0, isAdmin
     });
     alert("Account created successfully!");
   } catch (err) { alert(err.message); }
@@ -68,7 +69,6 @@ onAuthStateChanged(auth, async (user) => {
       }
     });
 
-    // Removed initDefaultStore() so deleted items are NOT re-created on refresh
     loadStore();
     listenChat();
   } else {
