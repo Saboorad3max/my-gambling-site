@@ -194,40 +194,76 @@ function loadStore() {
       card.style.display = "flex";
       card.style.flexDirection = "column";
       card.style.alignItems = "stretch";
+      card.style.padding = "15px";
+      card.style.border = "1px solid #374151";
+      card.style.borderRadius = "8px";
+      card.style.marginBottom = "10px";
+      card.style.backgroundColor = "#1f2937";
       
       card.innerHTML = `
-        <div>
-          <h4 style="margin:0;">${item.name}</h4>
-          <p style="margin: 5px 0; color: #3b82f6;">${item.cost} Coins / unit</p>
+        <div style="margin-bottom: 8px;">
+          <h4 style="margin:0; font-size:1.1em; color:#fff;">${item.name}</h4>
+          <p style="margin: 2px 0; color: #9ca3af; font-size: 0.9em;">Rate: <strong style="color:#3b82f6;">${item.cost} Coins</strong> / unit</p>
         </div>
-        <input type="number" class="coin-input" placeholder="Coins to spend (min ${item.cost})" min="${item.cost}" style="margin: 8px 0; width: 100%;">
-        <p class="calc-output" style="margin: 0 0 10px 0; font-size: 0.85em; color: #10b981;">Enter coins to calculate quantity</p>
-        <button class="claim-btn">Claim Request</button>`;
+        
+        <div style="display:flex; gap: 5px; margin-bottom: 8px;">
+          <input type="number" class="coin-input" placeholder="e.g. 70" min="${item.cost}" style="flex:1; padding: 8px; border-radius:4px; border:1px solid #4b5563; background:#111827; color:#fff;">
+          <button type="button" class="btn-quick-add" data-add="10" style="padding: 4px 8px; font-size: 0.8em; background: #374151; color: #fff; border: none; border-radius: 4px; cursor: pointer;">+10</button>
+          <button type="button" class="btn-quick-add" data-add="50" style="padding: 4px 8px; font-size: 0.8em; background: #374151; color: #fff; border: none; border-radius: 4px; cursor: pointer;">+50</button>
+        </div>
+
+        <div class="calc-display-box" style="background: #111827; padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 10px; border: 1px dashed #4b5563;">
+          <span style="font-size:0.8em; color:#9ca3af;">Calculated Output:</span>
+          <div class="calc-output" style="font-size: 1.05em; font-weight: bold; color: #10b981; margin-top: 3px;">Type coins above (e.g., 70)</div>
+        </div>
+
+        <button class="claim-btn" style="width: 100%; padding: 10px; background: #2563eb; color: #fff; font-weight: bold; border: none; border-radius: 6px; cursor: pointer;">Withdraw Time / Item</button>`;
 
       const input = card.querySelector(".coin-input");
       const output = card.querySelector(".calc-output");
       const claimBtn = card.querySelector(".claim-btn");
 
-      // Live dynamic minute/item quantity calculation
-      input.addEventListener("input", () => {
+      // Function to recalculate and display output based on typed coin value
+      const calculateTime = () => {
         const coinsSpent = parseInt(input.value);
-        if (isNaN(coinsSpent) || coinsSpent < item.cost) {
-          output.innerText = `Minimum required: ${item.cost} coins`;
-          output.style.color = "#ef4444";
-        } else {
-          const quantity = (coinsSpent / item.cost).toFixed(1);
-          const isPerMin = item.name.toLowerCase().includes("per min") || item.name.toLowerCase().includes("time");
-          const unitLabel = isPerMin ? "min" : "units/matches";
-          
-          output.innerText = `You will get: ${quantity} ${unitLabel}`;
+        if (isNaN(coinsSpent) || coinsSpent <= 0) {
+          output.innerText = "Type coins above (e.g., 70)";
           output.style.color = "#10b981";
+          return;
         }
+
+        if (coinsSpent < item.cost) {
+          output.innerText = `Min required: ${item.cost} coins`;
+          output.style.color = "#ef4444";
+          return;
+        }
+
+        const quantity = (coinsSpent / item.cost).toFixed(1);
+        const isPerMin = item.name.toLowerCase().includes("per min") || item.name.toLowerCase().includes("time");
+        const unitLabel = isPerMin ? "min" : "units/matches";
+
+        output.innerText = `You get: ${quantity} ${unitLabel}`;
+        output.style.color = "#10b981";
+      };
+
+      // Listen for typing inside input field
+      input.addEventListener("input", calculateTime);
+
+      // Handle +10 and +50 quick increment buttons
+      card.querySelectorAll(".btn-quick-add").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const addVal = parseInt(btn.dataset.add);
+          const currentVal = parseInt(input.value) || 0;
+          input.value = currentVal + addVal;
+          calculateTime();
+        });
       });
 
+      // Submit withdrawal request on button click
       claimBtn.onclick = () => {
         const coinsSpent = parseInt(input.value);
         if (isNaN(coinsSpent) || coinsSpent < item.cost) {
-          return alert(`Please enter at least ${item.cost} coins!`);
+          return alert(`Please enter at least ${item.cost} coins to proceed!`);
         }
         requestWithdraw(item.name, item.cost, coinsSpent);
       };
@@ -238,7 +274,9 @@ function loadStore() {
 }
 
 async function requestWithdraw(name, baseCost, totalCoinsSpent) {
-  if (userData.balance < totalCoinsSpent) return alert("Not enough coins!");
+  if (userData.balance < totalCoinsSpent) {
+    return alert(`Not enough coins! You have ${userData.balance} coins, but tried to spend ${totalCoinsSpent}.`);
+  }
 
   const quantity = (totalCoinsSpent / baseCost).toFixed(1);
   const isPerMin = name.toLowerCase().includes("per min") || name.toLowerCase().includes("time");
@@ -263,7 +301,7 @@ async function requestWithdraw(name, baseCost, totalCoinsSpent) {
       });
     });
 
-    alert(`Withdrawal request submitted for ${displayDetails}! Sent to Admin for approval.`);
+    alert(`Success! Withdrawal request submitted for ${displayDetails}. Sent to Admin for approval.`);
   } catch (err) {
     alert(err.message);
   }
