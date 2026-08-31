@@ -1,289 +1,258 @@
-/* --- RESET & GLOBAL STYLES --- */
+/* --- BASE RESET --- */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background-color: #0b0f19;
-  color: #f3f4f6;
+  background-color: #0b0f17;
+  color: #e5e7eb;
   padding: 12px;
   min-height: 100vh;
 }
 
 #app-container, #auth-container {
   width: 100%;
-  max-width: 850px;
+  max-width: 600px;
   margin: 0 auto;
 }
 
-/* --- AUTH / LOGIN PAGE --- */
-#auth-container {
-  background-color: #111827;
-  border: 1px solid #1f2937;
-  border-radius: 12px;
-  padding: 24px 16px;
-  margin-top: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-#auth-container h2 {
-  font-size: 1.4rem;
-  color: #fff;
-  text-align: center;
-  margin-bottom: 8px;
-}
-
-/* --- HEADER & USER INFO BAR --- */
+/* --- HEADER & TOP BAR --- */
 header, .top-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  background-color: #111827;
+  background: #111827;
   border: 1px solid #1f2937;
-  padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: 16px;
+  padding: 16px;
   margin-bottom: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 .logo-title {
-  font-size: 1.3rem;
-  font-weight: 700;
+  font-size: 1.35rem;
+  font-weight: 800;
   color: #ffffff;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 .user-info {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  width: 100%;
-  padding-top: 10px;
+  padding-top: 12px;
   border-top: 1px solid #1f2937;
 }
 
 .user-details {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+}
+
+.username-text {
+  font-weight: 600;
+  color: #9ca3af;
   font-size: 0.95rem;
 }
 
 .balance-pill {
-  background-color: #2563eb;
+  background: linear-gradient(135deg, #1e40af, #3b82f6);
   color: #ffffff;
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: 20px;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.9rem;
-  display: inline-block;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
 
 /* --- BUTTONS & INPUTS --- */
 button, .btn {
-  padding: 10px 14px;
-  border-radius: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
   border: none;
   font-weight: 600;
-  cursor: pointer;
   font-size: 0.9rem;
-  background-color: #2563eb;
+  cursor: pointer;
+  background: #2563eb;
   color: #ffffff;
-  transition: opacity 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 button:active {
-  opacity: 0.8;
+  transform: scale(0.97);
 }
 
 #btn-logout, .btn-danger {
-  background-color: #dc2626;
+  background: #ef4444;
   color: #ffffff;
 }
 
 input[type="text"], input[type="password"], input[type="number"], .coin-input {
   width: 100%;
-  padding: 10px 12px;
-  border-radius: 8px;
+  padding: 12px 14px;
+  border-radius: 10px;
   border: 1px solid #374151;
-  background-color: #1f2937;
+  background: #1f2937;
   color: #ffffff;
   font-size: 0.95rem;
   outline: none;
+  transition: border-color 0.2s;
 }
 
 input:focus {
   border-color: #3b82f6;
 }
 
-/* --- TAB NAVIGATION --- */
+/* --- NAVIGATION TABS --- */
 .tabs-nav {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding-bottom: 8px;
+  padding-bottom: 6px;
   margin-bottom: 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabs-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .tab-btn {
-  background-color: #111827;
+  background: #111827;
   color: #9ca3af;
   border: 1px solid #1f2937;
+  padding: 8px 14px;
+  border-radius: 10px;
   white-space: nowrap;
+  font-size: 0.85rem;
   flex-shrink: 0;
 }
 
 .tab-btn.active {
-  background-color: #2563eb;
+  background: #2563eb;
   color: #ffffff;
   border-color: #2563eb;
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.4);
 }
 
-/* --- TAB CONTENT PANELS --- */
+/* --- CONTENT CONTAINERS & CARDS --- */
 .tab-content {
   display: none;
 }
 
 .tab-content.active {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-/* --- STORE CARDS GRID --- */
-#store-list {
-  display: grid;
-  grid-template-columns: 1fr;
+.panel-card, .store-card {
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 16px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
-.store-card {
-  background-color: #111827;
-  border: 1px solid #1f2937;
-  border-radius: 12px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.card-header {
+.panel-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
   margin-bottom: 4px;
 }
 
-.item-title {
-  margin: 0;
-  font-size: 1.1em;
-  color: #fff;
-}
-
-.item-rate {
-  margin: 2px 0 0 0;
+.panel-subtitle {
+  font-size: 0.95rem;
+  font-weight: 600;
   color: #9ca3af;
-  font-size: 0.9em;
+  margin-top: 4px;
 }
 
+/* --- ADMIN & LIST ROWS --- */
+.admin-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #1f2937;
+}
+
+.user-row, .req-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1f2937;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  gap: 8px;
+}
+
+.req-row div {
+  display: flex;
+  gap: 6px;
+}
+
+/* --- COINFLIP GAME STYLES --- */
+.game-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+#coinflip-result {
+  text-align: center;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #10b981;
+}
+
+/* --- STORE & CALCULATOR --- */
 .input-group {
   display: flex;
   gap: 6px;
 }
 
 .btn-quick-add {
-  padding: 6px 12px;
-  font-size: 0.85em;
-  background-color: #374151;
+  padding: 6px 10px;
+  font-size: 0.8em;
+  background: #374151;
   color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .calc-display-box {
-  background-color: #0b0f19;
-  padding: 10px;
-  border-radius: 6px;
+  background: #0b0f19;
+  padding: 12px;
+  border-radius: 8px;
   text-align: center;
   border: 1px dashed #374151;
 }
 
 .calc-label {
-  font-size: 0.8em;
+  font-size: 0.8rem;
   color: #9ca3af;
 }
 
 .calc-output {
-  font-size: 1.05em;
+  font-size: 1rem;
   font-weight: bold;
-  margin-top: 3px;
+  margin-top: 4px;
 }
 
-.claim-btn {
-  width: 100%;
-  padding: 10px;
-  background-color: #2563eb;
-  color: #fff;
-  font-weight: bold;
-  border-radius: 6px;
-  margin-top: auto;
-}
-
-/* --- CHAT --- */
-#chat-messages {
-  height: 280px;
-  overflow-y: auto;
-  background-color: #0b0f19;
-  border: 1px solid #1f2937;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.chat-msg {
-  background-color: #1f2937;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  word-break: break-word;
-}
-
-.chat-input-group {
-  display: flex;
-  gap: 8px;
-}
-
-/* --- UTILITY CLASSES --- */
+/* --- UTILITIES --- */
 .text-blue { color: #3b82f6; }
 .text-green { color: #10b981; }
 .text-red { color: #ef4444; }
 
 .hidden {
   display: none !important;
-}
-
-/* --- DESKTOP & LARGER SCREENS (PC) --- */
-@media (min-width: 600px) {
-  header, .top-bar {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .user-info {
-    width: auto;
-    padding-top: 0;
-    border-top: none;
-  }
-
-  #store-list {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  }
 }
