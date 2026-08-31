@@ -160,6 +160,12 @@
 
     <!-- STORE SECTION -->
     <section id="tab-store" class="tab-content">
+      <div class="store-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 class="panel-title" style="margin: 0;">Withdraw Coins for Rewards</h2>
+        <button id="btn-open-add-item" class="btn-game admin-only hidden" style="background: #2563eb; color: #fff; width: auto; padding: 8px 16px;">
+          + Add Item
+        </button>
+      </div>
       <div id="store-list" class="grid-container"></div>
     </section>
 
@@ -179,16 +185,6 @@
     <!-- ADMIN PANEL SECTION -->
     <section id="tab-admin" class="tab-content">
       <h2 class="panel-title">Admin Control Panel</h2>
-      
-      <!-- STORE EDITING -->
-      <div class="panel-card">
-        <h3 class="panel-subtitle">Update Store Items & Rates</h3>
-        <div class="admin-section">
-          <input type="text" id="new-item-name" placeholder="Item Name (e.g., Android phone per min)">
-          <input type="number" id="new-item-cost" placeholder="Coin Cost (e.g., 7)">
-          <button id="btn-add-item">Add / Update Item</button>
-        </div>
-      </div>
 
       <!-- USER MANAGEMENT & TIPPING -->
       <div class="panel-card">
@@ -213,6 +209,29 @@
       <div class="modal-actions">
         <button id="btn-confirm-tip">Send Tip</button>
         <button id="btn-close-tip" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ITEM MANAGEMENT MODAL -->
+  <div id="item-modal" class="modal hidden">
+    <div class="modal-content panel-card" style="max-width: 400px; text-align: left;">
+      <h3 id="item-modal-title" class="panel-title">Add Store Item</h3>
+      <input type="hidden" id="item-modal-id">
+      
+      <div style="margin-bottom: 12px;">
+        <label style="display: block; font-size: 0.85rem; color: #9ca3af; margin-bottom: 4px;">Item Name / Unit</label>
+        <input type="text" id="item-modal-name" placeholder="e.g., iphone per min" class="coin-input">
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; font-size: 0.85rem; color: #9ca3af; margin-bottom: 4px;">Coins per Unit (Rate)</label>
+        <input type="number" id="item-modal-cost" placeholder="e.g., 20" class="coin-input" min="1">
+      </div>
+
+      <div class="modal-actions" style="display: flex; gap: 10px;">
+        <button id="btn-save-item" class="btn-game" style="background: #059669; color: #fff; flex: 1;">Save</button>
+        <button id="btn-close-item-modal" class="btn-secondary" style="flex: 1;">Cancel</button>
       </div>
     </div>
   </div>
