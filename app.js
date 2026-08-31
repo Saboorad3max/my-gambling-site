@@ -32,7 +32,7 @@ const defaultItems = [
 ];
 
 // --- AUTHENTICATION ---
-document.getElementById("btn-signup").addEventListener("click", async () => {
+document.getElementById("btn-signup")?.addEventListener("click", async () => {
   const email = document.getElementById("auth-email").value.trim();
   const password = document.getElementById("auth-password").value;
   const username = document.getElementById("auth-username").value.trim();
@@ -50,7 +50,7 @@ document.getElementById("btn-signup").addEventListener("click", async () => {
   } catch (err) { alert(err.message); }
 });
 
-document.getElementById("btn-login").addEventListener("click", async () => {
+document.getElementById("btn-login")?.addEventListener("click", async () => {
   const email = document.getElementById("auth-email").value.trim();
   const password = document.getElementById("auth-password").value;
   try {
@@ -58,7 +58,7 @@ document.getElementById("btn-login").addEventListener("click", async () => {
   } catch (err) { alert(err.message); }
 });
 
-document.getElementById("btn-logout").addEventListener("click", () => signOut(auth));
+document.getElementById("btn-logout")?.addEventListener("click", () => signOut(auth));
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {
@@ -72,14 +72,14 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById("display-user").innerText = userData.username;
         document.getElementById("display-balance").innerText = userData.balance;
 
-        if (userData.isAdmin) {
+        if (userData.isAdmin || currentUser.email.toLowerCase() === "saboorezz@gmail.com") {
           document.querySelectorAll(".admin-only").forEach(el => el.classList.remove("hidden"));
           loadAdminPanel();
         }
       }
     });
 
-    initDefaultStore();
+    await initDefaultStore();
     loadStore();
     listenChat();
   } else {
@@ -285,7 +285,7 @@ window.standBlackjack = async () => {
 
 // --- CHAT & TIPPING ---
 const chatInput = document.getElementById("chat-input");
-document.getElementById("btn-send-chat").addEventListener("click", sendMessage);
+document.getElementById("btn-send-chat")?.addEventListener("click", sendMessage);
 
 async function sendMessage() {
   const text = chatInput.value.trim();
@@ -309,6 +309,7 @@ function listenChat() {
   const q = query(collection(db, "chat"), orderBy("timestamp", "asc"), limit(50));
   onSnapshot(q, (snapshot) => {
     const chatBox = document.getElementById("chat-messages");
+    if (!chatBox) return;
     chatBox.innerHTML = "";
     snapshot.forEach(doc => {
       const msg = doc.data();
@@ -318,9 +319,11 @@ function listenChat() {
   });
 }
 
-document.getElementById("btn-close-tip").onclick = () => document.getElementById("tip-modal").classList.add("hidden");
+document.getElementById("btn-close-tip")?.addEventListener("click", () => {
+  document.getElementById("tip-modal").classList.add("hidden");
+});
 
-document.getElementById("btn-confirm-tip").onclick = async () => {
+document.getElementById("btn-confirm-tip")?.addEventListener("click", async () => {
   const recipientName = document.getElementById("tip-recipient").value.trim();
   const amount = parseInt(document.getElementById("tip-amount").value);
 
@@ -351,9 +354,9 @@ document.getElementById("btn-confirm-tip").onclick = async () => {
     alert(`Successfully tipped ${amount} coins to ${recipientName}!`);
     document.getElementById("tip-modal").classList.add("hidden");
   } catch (err) { alert(err.message); }
-};
+});
 
-// --- STORE & INLINE ADMIN MANAGEMENT ---
+// --- STORE & INLINE MODAL MANAGEMENT ---
 async function initDefaultStore() {
   for (let item of defaultItems) {
     const itemRef = doc(db, "store", item.name);
@@ -367,29 +370,23 @@ async function initDefaultStore() {
 function loadStore() {
   onSnapshot(collection(db, "store"), (snap) => {
     const container = document.getElementById("store-list");
+    if (!container) return;
     container.innerHTML = "";
     
     const isAdmin = userData && (userData.isAdmin || currentUser?.email.toLowerCase() === "saboorezz@gmail.com");
 
-    // Add Store Header with "+ Add Item" Button for Admin
-    const header = document.createElement("div");
-    header.style.cssText = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;";
-    header.innerHTML = `
-      <h3 style="margin:0;">Withdraw Coins for Rewards</h3>
-      ${isAdmin ? `<button class="btn-quick-add" onclick="promptAddNewItem()" style="background:#28a745; color:#fff; padding:6px 14px; font-weight:bold;">+ Add Item</button>` : ''}
-    `;
-    container.appendChild(header);
-
     snap.forEach(d => {
       const item = d.data();
       const card = document.createElement("div");
-      card.className = "store-card";
+      card.className = "game-card store-card";
       card.style.position = "relative";
       
       const adminActionsHTML = isAdmin ? `
-        <div style="position: absolute; top: 12px; right: 12px; display: flex; gap: 8px;">
-          <button onclick="editStoreItem('${d.id}', ${item.cost})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Edit Price">✏️</button>
-          <button onclick="deleteStoreItem('${d.id}')" style="background: none; border: none; cursor: pointer; font-size: 16px; color: red;" title="Remove Item">❌</button>
+        <div style="position: absolute; top: 12px; right: 12px; display: flex; gap: 8px; z-index: 5;">
+          <button onclick="editStoreItemModal('${d.id}', '${item.name.replace(/'/g, "\\'")}', ${item.cost})" 
+                  style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Edit Item">✏️</button>
+          <button onclick="deleteStoreItem('${d.id}')" 
+                  style="background: none; border: none; cursor: pointer; font-size: 16px; color: red;" title="Remove Item">✖</button>
         </div>
       ` : '';
 
@@ -466,29 +463,56 @@ function loadStore() {
   });
 }
 
-// --- ADMIN ACTION HANDLERS ---
-window.promptAddNewItem = async () => {
-  const name = prompt("Enter new item name (e.g., 'netflix time'):");
-  if (!name) return;
-  const cost = parseInt(prompt("Enter cost per unit/minute:"));
-  if (isNaN(cost) || cost <= 0) return alert("Invalid price entered!");
+// --- ITEM MODAL HANDLERS ---
+const itemModal = document.getElementById("item-modal");
 
-  await setDoc(doc(db, "store", name.trim()), { name: name.trim(), cost });
-  alert(`Added ${name} at ${cost} coins!`);
+document.getElementById("btn-open-add-item")?.addEventListener("click", () => {
+  document.getElementById("item-modal-title").textContent = "Add Store Item";
+  document.getElementById("item-modal-id").value = "";
+  document.getElementById("item-modal-name").value = "";
+  document.getElementById("item-modal-cost").value = "";
+  itemModal.classList.remove("hidden");
+});
+
+document.getElementById("btn-close-item-modal")?.addEventListener("click", () => {
+  itemModal.classList.add("hidden");
+});
+
+window.editStoreItemModal = (id, name, cost) => {
+  document.getElementById("item-modal-title").textContent = "Edit Store Item";
+  document.getElementById("item-modal-id").value = id;
+  document.getElementById("item-modal-name").value = name;
+  document.getElementById("item-modal-cost").value = cost;
+  itemModal.classList.remove("hidden");
 };
 
-window.editStoreItem = async (itemId, currentCost) => {
-  const newCost = parseInt(prompt(`Enter new coin rate for "${itemId}":`, currentCost));
-  if (isNaN(newCost) || newCost <= 0) return;
+document.getElementById("btn-save-item")?.addEventListener("click", async () => {
+  const oldId = document.getElementById("item-modal-id").value;
+  const name = document.getElementById("item-modal-name").value.trim();
+  const cost = parseInt(document.getElementById("item-modal-cost").value);
 
-  await updateDoc(doc(db, "store", itemId), { cost: newCost });
-  alert("Item rate updated!");
-};
+  if (!name || isNaN(cost) || cost <= 0) {
+    return alert("Please enter a valid item name and cost!");
+  }
+
+  try {
+    if (oldId && oldId !== name) {
+      await deleteDoc(doc(db, "store", oldId));
+    }
+    await setDoc(doc(db, "store", name), { name, cost });
+    itemModal.classList.add("hidden");
+  } catch (err) {
+    alert(err.message);
+  }
+});
 
 window.deleteStoreItem = async (itemId) => {
   if (confirm(`Are you sure you want to delete "${itemId}"?`)) {
-    await deleteDoc(doc(db, "store", itemId));
-    alert("Item removed successfully!");
+    try {
+      await deleteDoc(doc(db, "store", itemId));
+    } catch (err) {
+      alert(err.message);
+    }
   }
 };
 
@@ -528,22 +552,14 @@ async function requestWithdraw(name, baseCost, totalCoinsSpent) {
 
 // --- ADMIN PANEL FUNCTIONS ---
 function loadAdminPanel() {
-  document.getElementById("btn-add-item").onclick = async () => {
-    const name = document.getElementById("new-item-name").value.trim();
-    const cost = parseInt(document.getElementById("new-item-cost").value);
-    if (!name || isNaN(cost)) return alert("Invalid inputs!");
-
-    await setDoc(doc(db, "store", name), { name, cost });
-    alert("Store item updated!");
-  };
-
   onSnapshot(collection(db, "users"), (snap) => {
     const list = document.getElementById("admin-user-list");
+    if (!list) return;
     list.innerHTML = "";
     snap.forEach(d => {
       const u = d.data();
       list.innerHTML += `
-        <div class="user-row">
+        <div class="user-row" style="display:flex; justify-content:space-between; margin-bottom:8px;">
           <span>${u.username} (${u.email}) - <strong>${u.balance} Coins</strong></span>
           <button onclick="openAdminTip('${u.username}')">Tip User</button>
         </div>`;
@@ -552,13 +568,14 @@ function loadAdminPanel() {
 
   onSnapshot(collection(db, "withdrawals"), (snap) => {
     const list = document.getElementById("admin-withdraw-list");
+    if (!list) return;
     list.innerHTML = "";
     snap.forEach(d => {
       const w = d.data();
       if (w.status === "pending") {
         const itemInfo = w.details ? w.details : `${w.itemName} (${w.cost}c)`;
         list.innerHTML += `
-          <div class="req-row">
+          <div class="req-row" style="display:flex; justify-content:space-between; margin-bottom:8px;">
             <span><strong>${w.username}</strong> requested <strong>${itemInfo}</strong></span>
             <div>
               <button onclick="approveWithdraw('${d.id}')">Approve</button>
