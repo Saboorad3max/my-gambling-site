@@ -21,7 +21,7 @@ body {
 }
 
 /* --- HEADER & TOP BAR --- */
-header, .top-bar {
+header, .top-bar, .navbar {
   background: #111827;
   border: 1px solid #1f2937;
   border-radius: 16px;
@@ -60,7 +60,7 @@ header, .top-bar {
   font-size: 0.95rem;
 }
 
-.balance-pill {
+.balance-pill, .badge {
   background: linear-gradient(135deg, #1e40af, #3b82f6);
   color: #ffffff;
   padding: 5px 12px;
@@ -109,7 +109,7 @@ input:focus {
 }
 
 /* --- NAVIGATION TABS --- */
-.tabs-nav {
+.tabs-nav, .tabs, .nav-tabs {
   display: flex;
   gap: 8px;
   overflow-x: auto;
@@ -118,7 +118,7 @@ input:focus {
   -webkit-overflow-scrolling: touch;
 }
 
-.tabs-nav::-webkit-scrollbar {
+.tabs-nav::-webkit-scrollbar, .tabs::-webkit-scrollbar {
   display: none;
 }
 
@@ -151,7 +151,7 @@ input:focus {
   gap: 16px;
 }
 
-.panel-card, .store-card {
+.panel-card, .store-card, .card {
   background: #111827;
   border: 1px solid #1f2937;
   border-radius: 16px;
@@ -173,6 +173,184 @@ input:focus {
   font-weight: 600;
   color: #9ca3af;
   margin-top: 4px;
+}
+
+/* --- SHUFFLE LOBBY GRID --- */
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #9ca3af;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 14px;
+}
+
+.game-card {
+  position: relative;
+  background: linear-gradient(145deg, #1f2937, #111827);
+  border: 1px solid #374151;
+  border-radius: 14px;
+  padding: 20px 10px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  height: 160px;
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  overflow: hidden;
+}
+
+.game-card:hover {
+  transform: translateY(-6px) scale(1.02);
+  border-color: #3b82f6;
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.25);
+}
+
+.card-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-align: center;
+  padding: 3px 0;
+  letter-spacing: 1px;
+}
+
+.card-icon {
+  font-size: 3rem;
+  margin-top: 15px;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+}
+
+.card-title {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+/* --- GAME VIEW STAGE --- */
+.btn-back {
+  background: #1f2937;
+  color: #9ca3af;
+  border: 1px solid #374151;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 14px;
+  width: fit-content;
+}
+
+.btn-back:hover {
+  color: #fff;
+  border-color: #4b5563;
+}
+
+.game-container {
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+/* --- 3D COIN ANIMATION --- */
+.coin-wrapper {
+  width: 120px;
+  height: 120px;
+  perspective: 1000px;
+  margin: 10px 0;
+}
+
+.coin {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 3s cubic-bezier(0.15, 0.85, 0.35, 1.2);
+}
+
+.coin-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  backface-visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 1.1rem;
+  box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 0, 0, 0.6);
+  border: 4px solid #f59e0b;
+}
+
+.coin-heads {
+  background: linear-gradient(135deg, #fef08a, #d97706);
+  color: #78350f;
+}
+
+.coin-tails {
+  background: linear-gradient(135deg, #e2e8f0, #64748b);
+  color: #0f172a;
+  border-color: #94a3b8;
+  transform: rotateY(180deg);
+}
+
+.coin.animate-heads {
+  transform: rotateY(1800deg);
+}
+
+.coin.animate-tails {
+  transform: rotateY(1980deg);
+}
+
+/* --- GAME CONTROLS --- */
+.bet-controls {
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.game-buttons, .game-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.btn-game {
+  padding: 12px;
+  border-radius: 10px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-heads { background: #d97706; color: #fff; }
+.btn-tails { background: #475569; color: #fff; }
+
+.game-status-text {
+  font-weight: 700;
+  font-size: 1rem;
+  min-height: 24px;
+  text-align: center;
 }
 
 /* --- ADMIN & LIST ROWS --- */
@@ -200,21 +378,41 @@ input:focus {
   gap: 6px;
 }
 
-/* --- COINFLIP GAME STYLES --- */
-.game-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+/* --- CHAT BOX --- */
+.chat-box {
+  height: 250px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-#coinflip-result {
-  text-align: center;
-  font-weight: 700;
-  font-size: 1rem;
-  color: #10b981;
+.chat-msg {
+  background: #1f2937;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.chat-input-box {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.chat-help {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  margin-bottom: 8px;
 }
 
 /* --- STORE & CALCULATOR --- */
+.grid-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 .input-group {
   display: flex;
   gap: 6px;
@@ -246,6 +444,37 @@ input:focus {
   font-size: 1rem;
   font-weight: bold;
   margin-top: 4px;
+}
+
+/* --- MODAL --- */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 400px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.btn-secondary {
+  background: #374151;
+  color: #ffffff;
 }
 
 /* --- UTILITIES --- */
