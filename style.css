@@ -111,9 +111,10 @@ input:focus {
 /* --- NAVIGATION TABS --- */
 .tabs-nav, .tabs, .nav-tabs {
   display: flex;
+  flex-wrap: nowrap;
   gap: 8px;
   overflow-x: auto;
-  padding-bottom: 6px;
+  padding-bottom: 8px;
   margin-bottom: 16px;
   -webkit-overflow-scrolling: touch;
 }
@@ -187,8 +188,8 @@ input:focus {
 
 .games-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
 .game-card {
@@ -196,19 +197,21 @@ input:focus {
   background: linear-gradient(145deg, #1f2937, #111827);
   border: 1px solid #374151;
   border-radius: 14px;
-  padding: 20px 10px 14px 10px;
+  padding: 16px 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  height: 160px;
+  justify-content: center;
+  gap: 8px;
+  min-height: 120px;
   cursor: pointer;
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   overflow: hidden;
+  text-align: center;
 }
 
 .game-card:hover {
-  transform: translateY(-6px) scale(1.02);
+  transform: translateY(-4px) scale(1.02);
   border-color: #3b82f6;
   box-shadow: 0 10px 25px rgba(59, 130, 246, 0.25);
 }
@@ -225,17 +228,19 @@ input:focus {
   text-align: center;
   padding: 3px 0;
   letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 .card-icon {
-  font-size: 3rem;
-  margin-top: 15px;
+  font-size: 2.5rem;
+  line-height: 1;
+  margin-top: 10px;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
 }
 
 .card-title {
   font-weight: 800;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: #fff;
   letter-spacing: 0.5px;
 }
@@ -378,9 +383,23 @@ input:focus {
   gap: 6px;
 }
 
-/* --- CHAT BOX --- */
+/* --- CHAT CONTAINER & BOX --- */
+.chat-container {
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .chat-box {
-  height: 250px;
+  height: 220px;
+  background: #0b0f17;
+  border: 1px solid #1f2937;
+  border-radius: 10px;
+  padding: 12px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -392,12 +411,13 @@ input:focus {
   padding: 8px 12px;
   border-radius: 8px;
   font-size: 0.9rem;
+  word-break: break-word;
 }
 
-.chat-input-box {
+.chat-input-box, .chat-input-group {
   display: flex;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 6px;
 }
 
 .chat-help {
