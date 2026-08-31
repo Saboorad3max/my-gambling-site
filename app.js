@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, addDoc, onSnapshot, query, orderBy, limit, runTransaction, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, addDoc, onSnapshot, query, orderBy, limit, runTransaction, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -283,7 +283,7 @@ window.standBlackjack = async () => {
   }
 };
 
-// --- CHAT & TIPPING (WITH UNLIMITED ADMIN TIPPING) ---
+// --- CHAT & TIPPING ---
 const chatInput = document.getElementById("chat-input");
 document.getElementById("btn-send-chat").addEventListener("click", sendMessage);
 
@@ -328,7 +328,6 @@ document.getElementById("btn-confirm-tip").onclick = async () => {
 
   const isAdmin = userData.isAdmin || currentUser.email.toLowerCase() === "saboorezz@gmail.com";
 
-  // Balance check bypassed completely for Admin
   if (!isAdmin && amount > userData.balance) {
     return alert("Not enough balance!");
   }
@@ -342,7 +341,6 @@ document.getElementById("btn-confirm-tip").onclick = async () => {
       const targetDoc = snap.docs[0];
       const targetData = targetDoc.data();
 
-      // Only deduct coins if sender is not Admin
       if (!isAdmin) {
         transaction.update(doc(db, "users", currentUser.uid), { balance: userData.balance - amount });
       }
@@ -355,7 +353,7 @@ document.getElementById("btn-confirm-tip").onclick = async () => {
   } catch (err) { alert(err.message); }
 };
 
-// --- STORE & WITHDRAWALS ---
+// --- STORE & INLINE ADMIN MANAGEMENT ---
 async function initDefaultStore() {
   for (let item of defaultItems) {
     const itemRef = doc(db, "store", item.name);
@@ -370,14 +368,35 @@ function loadStore() {
   onSnapshot(collection(db, "store"), (snap) => {
     const container = document.getElementById("store-list");
     container.innerHTML = "";
+    
+    const isAdmin = userData && (userData.isAdmin || currentUser?.email.toLowerCase() === "saboorezz@gmail.com");
+
+    // Add Store Header with "+ Add Item" Button for Admin
+    const header = document.createElement("div");
+    header.style.cssText = "display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;";
+    header.innerHTML = `
+      <h3 style="margin:0;">Withdraw Coins for Rewards</h3>
+      ${isAdmin ? `<button class="btn-quick-add" onclick="promptAddNewItem()" style="background:#28a745; color:#fff; padding:6px 14px; font-weight:bold;">+ Add Item</button>` : ''}
+    `;
+    container.appendChild(header);
+
     snap.forEach(d => {
       const item = d.data();
       const card = document.createElement("div");
       card.className = "store-card";
+      card.style.position = "relative";
       
+      const adminActionsHTML = isAdmin ? `
+        <div style="position: absolute; top: 12px; right: 12px; display: flex; gap: 8px;">
+          <button onclick="editStoreItem('${d.id}', ${item.cost})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Edit Price">✏️</button>
+          <button onclick="deleteStoreItem('${d.id}')" style="background: none; border: none; cursor: pointer; font-size: 16px; color: red;" title="Remove Item">❌</button>
+        </div>
+      ` : '';
+
       card.innerHTML = `
+        ${adminActionsHTML}
         <div class="card-header">
-          <h4 class="item-title">${item.name}</h4>
+          <h4 class="item-title" style="margin-right: 50px;">${item.name}</h4>
           <p class="item-rate">Rate: <strong class="text-blue">${item.cost} Coins</strong> / unit</p>
         </div>
         
@@ -446,6 +465,32 @@ function loadStore() {
     });
   });
 }
+
+// --- ADMIN ACTION HANDLERS ---
+window.promptAddNewItem = async () => {
+  const name = prompt("Enter new item name (e.g., 'netflix time'):");
+  if (!name) return;
+  const cost = parseInt(prompt("Enter cost per unit/minute:"));
+  if (isNaN(cost) || cost <= 0) return alert("Invalid price entered!");
+
+  await setDoc(doc(db, "store", name.trim()), { name: name.trim(), cost });
+  alert(`Added ${name} at ${cost} coins!`);
+};
+
+window.editStoreItem = async (itemId, currentCost) => {
+  const newCost = parseInt(prompt(`Enter new coin rate for "${itemId}":`, currentCost));
+  if (isNaN(newCost) || newCost <= 0) return;
+
+  await updateDoc(doc(db, "store", itemId), { cost: newCost });
+  alert("Item rate updated!");
+};
+
+window.deleteStoreItem = async (itemId) => {
+  if (confirm(`Are you sure you want to delete "${itemId}"?`)) {
+    await deleteDoc(doc(db, "store", itemId));
+    alert("Item removed successfully!");
+  }
+};
 
 async function requestWithdraw(name, baseCost, totalCoinsSpent) {
   if (userData.balance < totalCoinsSpent) {
