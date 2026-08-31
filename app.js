@@ -67,13 +67,15 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById("app-container").classList.remove("hidden");
 
     onSnapshot(doc(db, "users", user.uid), (docSnap) => {
-      userData = docSnap.data();
-      document.getElementById("display-user").innerText = userData.username;
-      document.getElementById("display-balance").innerText = userData.balance;
+      if (docSnap.exists()) {
+        userData = docSnap.data();
+        document.getElementById("display-user").innerText = userData.username;
+        document.getElementById("display-balance").innerText = userData.balance;
 
-      if (userData.isAdmin) {
-        document.querySelectorAll(".admin-only").forEach(el => el.classList.remove("hidden"));
-        loadAdminPanel();
+        if (userData.isAdmin) {
+          document.querySelectorAll(".admin-only").forEach(el => el.classList.remove("hidden"));
+          loadAdminPanel();
+        }
       }
     });
 
@@ -96,7 +98,7 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
   });
 });
 
-// --- SHUFFLE GAME LOBBY ROUTING ---
+// --- GAME LOBBY ROUTING ---
 window.openGame = (gameId) => {
   document.getElementById("games-lobby").classList.add("hidden");
   document.querySelectorAll(".game-stage").forEach(el => el.classList.add("hidden"));
@@ -121,27 +123,19 @@ window.play3DCoinflip = async (choice) => {
     return alert("Invalid bet amount!");
   }
 
-  // Reset 3D transformation
   coin.style.transition = "none";
   coin.className = "coin";
-  
-  // Force browser layout repaint to reset CSS animation state
   void coin.offsetWidth;
-
-  // Re-apply smooth animation curve
   coin.style.transition = "transform 3s cubic-bezier(0.15, 0.85, 0.35, 1.2)";
 
-  // Random outcome determination
   const outcome = Math.random() < 0.5 ? "heads" : "tails";
   const won = outcome === choice;
   const newBalance = won ? userData.balance + bet : userData.balance - bet;
 
-  // Trigger 3D CSS rotation
   coin.classList.add(outcome === "heads" ? "animate-heads" : "animate-tails");
   resultText.innerText = "Flipping...";
   resultText.className = "game-status-text text-blue";
 
-  // Wait 3 seconds for 3D animation to finish before updating DB and showing victory message
   setTimeout(async () => {
     await updateDoc(doc(db, "users", currentUser.uid), { balance: newBalance });
 
@@ -155,7 +149,141 @@ window.play3DCoinflip = async (choice) => {
   }, 3000);
 };
 
-// --- CHAT & TIP ---
+// --- DICE GAME ---
+window.playDice = async () => {
+  const bet = parseInt(document.getElementById("dice-bet").value);
+  const target = document.getElementById("dice-target").value;
+  const resultText = document.getElementById("dice-result");
+  const display = document.getElementById("dice-display");
+
+  if (isNaN(bet) || bet <= 0 || bet > userData.balance) {
+    resultText.innerText = "Invalid bet amount or insufficient balance!";
+    resultText.className = "game-status-text text-red";
+    return;
+  }
+
+  const roll = Math.floor(Math.random() * 6) + 1;
+  const diceEmojis = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+  display.innerText = diceEmojis[roll];
+
+  let won = false;
+  let multiplier = 0;
+
+  if (target === "under3" && roll < 3) { won = true; multiplier = 2; }
+  else if (target === "over3" && roll > 3) { won = true; multiplier = 2; }
+  else if (target === "exact6" && roll === 6) { won = true; multiplier = 5; }
+
+  if (won) {
+    const profit = bet * (multiplier - 1);
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: userData.balance + profit });
+    resultText.innerText = `Rolled ${roll}! You won ${profit} coins! 🎉`;
+    resultText.className = "game-status-text text-green";
+  } else {
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: userData.balance - bet });
+    resultText.innerText = `Rolled ${roll}. You lost ${bet} coins.`;
+    resultText.className = "game-status-text text-red";
+  }
+};
+
+// --- BLACKJACK GAME ---
+let bjDeck = [], playerHand = [], dealerHand = [], bjBetAmount = 0;
+
+function createDeck() {
+  const suits = ['♠', '♥', '♦', '♣'], values = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+  let deck = [];
+  suits.forEach(s => values.forEach(v => deck.push({ value: v, suit: s })));
+  return deck.sort(() => Math.random() - 0.5);
+}
+
+function calculateHand(hand) {
+  let score = 0, aces = 0;
+  hand.forEach(card => {
+    if (['J','Q','K'].includes(card.value)) score += 10;
+    else if (card.value === 'A') { score += 11; aces += 1; }
+    else score += parseInt(card.value);
+  });
+  while (score > 21 && aces > 0) { score -= 10; aces -= 1; }
+  return score;
+}
+
+function renderBJ(showDealer = false) {
+  document.getElementById('bj-player-hand').innerText = playerHand.map(c => c.value + c.suit).join(' ');
+  document.getElementById('bj-player-score').innerText = `(${calculateHand(playerHand)})`;
+
+  if (showDealer) {
+    document.getElementById('bj-dealer-hand').innerText = dealerHand.map(c => c.value + c.suit).join(' ');
+    document.getElementById('bj-dealer-score').innerText = `(${calculateHand(dealerHand)})`;
+  } else {
+    document.getElementById('bj-dealer-hand').innerText = dealerHand[0].value + dealerHand[0].suit + ' 🂠';
+    document.getElementById('bj-dealer-score').innerText = '';
+  }
+}
+
+function endBJ(msg, colorClass) {
+  const res = document.getElementById('bj-result');
+  res.innerText = msg;
+  res.className = `game-status-text ${colorClass}`;
+  document.getElementById('bj-setup-btns').classList.remove('hidden');
+  document.getElementById('bj-action-btns').classList.add('hidden');
+}
+
+window.startBlackjack = async () => {
+  bjBetAmount = parseInt(document.getElementById('bj-bet').value);
+  const resultText = document.getElementById('bj-result');
+
+  if (isNaN(bjBetAmount) || bjBetAmount <= 0 || bjBetAmount > userData.balance) {
+    resultText.innerText = "Invalid bet amount or insufficient balance!";
+    resultText.className = "game-status-text text-red";
+    return;
+  }
+
+  bjDeck = createDeck();
+  playerHand = [bjDeck.pop(), bjDeck.pop()];
+  dealerHand = [bjDeck.pop(), bjDeck.pop()];
+
+  document.getElementById('bj-setup-btns').classList.add('hidden');
+  document.getElementById('bj-action-btns').classList.remove('hidden');
+  resultText.innerText = "";
+
+  renderBJ();
+
+  if (calculateHand(playerHand) === 21) {
+    const payout = Math.floor(bjBetAmount * 1.5);
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: userData.balance + payout });
+    endBJ(`Blackjack! You won ${payout} coins! 🎉`, 'text-green');
+  }
+};
+
+window.hitBlackjack = async () => {
+  playerHand.push(bjDeck.pop());
+  renderBJ();
+  
+  if (calculateHand(playerHand) > 21) {
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: userData.balance - bjBetAmount });
+    endBJ(`Bust! You lost ${bjBetAmount} coins.`, 'text-red');
+  }
+};
+
+window.standBlackjack = async () => {
+  while (calculateHand(dealerHand) < 17) {
+    dealerHand.push(bjDeck.pop());
+  }
+  renderBJ(true);
+
+  const pScore = calculateHand(playerHand), dScore = calculateHand(dealerHand);
+  
+  if (dScore > 21 || pScore > dScore) {
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: userData.balance + bjBetAmount });
+    endBJ(`You win ${bjBetAmount} coins! 🎉`, 'text-green');
+  } else if (pScore === dScore) {
+    endBJ(`Push! Your bet was returned.`, 'text-blue');
+  } else {
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: userData.balance - bjBetAmount });
+    endBJ(`Dealer wins. You lost ${bjBetAmount} coins.`, 'text-red');
+  }
+};
+
+// --- CHAT & TIPPING (WITH UNLIMITED ADMIN TIPPING) ---
 const chatInput = document.getElementById("chat-input");
 document.getElementById("btn-send-chat").addEventListener("click", sendMessage);
 
@@ -191,12 +319,19 @@ function listenChat() {
 }
 
 document.getElementById("btn-close-tip").onclick = () => document.getElementById("tip-modal").classList.add("hidden");
+
 document.getElementById("btn-confirm-tip").onclick = async () => {
   const recipientName = document.getElementById("tip-recipient").value.trim();
   const amount = parseInt(document.getElementById("tip-amount").value);
 
   if (!recipientName || isNaN(amount) || amount <= 0) return alert("Invalid input!");
-  if (amount > userData.balance) return alert("Not enough balance!");
+
+  const isAdmin = userData.isAdmin || currentUser.email.toLowerCase() === "saboorezz@gmail.com";
+
+  // Balance check bypassed completely for Admin
+  if (!isAdmin && amount > userData.balance) {
+    return alert("Not enough balance!");
+  }
 
   try {
     await runTransaction(db, async (transaction) => {
@@ -207,7 +342,11 @@ document.getElementById("btn-confirm-tip").onclick = async () => {
       const targetDoc = snap.docs[0];
       const targetData = targetDoc.data();
 
-      transaction.update(doc(db, "users", currentUser.uid), { balance: userData.balance - amount });
+      // Only deduct coins if sender is not Admin
+      if (!isAdmin) {
+        transaction.update(doc(db, "users", currentUser.uid), { balance: userData.balance - amount });
+      }
+
       transaction.update(doc(db, "users", targetDoc.id), { balance: targetData.balance + amount });
     });
 
