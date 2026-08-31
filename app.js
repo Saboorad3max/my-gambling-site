@@ -96,17 +96,63 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
   });
 });
 
-// --- COINFLIP GAME ---
-window.playCoinflip = async (choice) => {
-  const bet = parseInt(document.getElementById("coinflip-bet").value);
-  if (isNaN(bet) || bet <= 0 || bet > userData.balance) return alert("Invalid bet!");
+// --- SHUFFLE GAME LOBBY ROUTING ---
+window.openGame = (gameId) => {
+  document.getElementById("games-lobby").classList.add("hidden");
+  document.querySelectorAll(".game-stage").forEach(el => el.classList.add("hidden"));
+  
+  const stage = document.getElementById(`game-stage-${gameId}`);
+  if (stage) stage.classList.remove("hidden");
+};
 
-  const result = Math.random() < 0.5 ? "heads" : "tails";
-  const won = result === choice;
+window.closeGame = () => {
+  document.querySelectorAll(".game-stage").forEach(el => el.classList.add("hidden"));
+  document.getElementById("games-lobby").classList.remove("hidden");
+};
+
+// --- 3D ANIMATED COINFLIP ---
+window.play3DCoinflip = async (choice) => {
+  const betInput = document.getElementById("coinflip-bet");
+  const bet = parseInt(betInput.value);
+  const resultText = document.getElementById("coinflip-result");
+  const coin = document.getElementById("coin");
+
+  if (isNaN(bet) || bet <= 0 || bet > userData.balance) {
+    return alert("Invalid bet amount!");
+  }
+
+  // Reset 3D transformation
+  coin.style.transition = "none";
+  coin.className = "coin";
+  
+  // Force browser layout repaint to reset CSS animation state
+  void coin.offsetWidth;
+
+  // Re-apply smooth animation curve
+  coin.style.transition = "transform 3s cubic-bezier(0.15, 0.85, 0.35, 1.2)";
+
+  // Random outcome determination
+  const outcome = Math.random() < 0.5 ? "heads" : "tails";
+  const won = outcome === choice;
   const newBalance = won ? userData.balance + bet : userData.balance - bet;
 
-  await updateDoc(doc(db, "users", currentUser.uid), { balance: newBalance });
-  document.getElementById("coinflip-result").innerText = won ? `🎉 You Won! Flipped ${result}.` : `❌ You Lost! Flipped ${result}.`;
+  // Trigger 3D CSS rotation
+  coin.classList.add(outcome === "heads" ? "animate-heads" : "animate-tails");
+  resultText.innerText = "Flipping...";
+  resultText.className = "game-status-text text-blue";
+
+  // Wait 3 seconds for 3D animation to finish before updating DB and showing victory message
+  setTimeout(async () => {
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: newBalance });
+
+    if (won) {
+      resultText.innerText = `🎉 You Won! Flipped ${outcome.toUpperCase()}. (+${bet} coins)`;
+      resultText.className = "game-status-text text-green";
+    } else {
+      resultText.innerText = `❌ You Lost! Flipped ${outcome.toUpperCase()}. (-${bet} coins)`;
+      resultText.className = "game-status-text text-red";
+    }
+  }, 3000);
 };
 
 // --- CHAT & TIP ---
