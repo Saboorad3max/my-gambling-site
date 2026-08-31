@@ -643,3 +643,98 @@ window.rejectWithdraw = async (reqId, userId, refundCost) => {
   });
   alert("Request rejected & coins refunded!");
 };
+// --- MILESTONE REWARDS LOGIC ---
+
+const MILESTONE_TIERS = [
+  { id: 1, requiredWager: 1500, reward: 30, label: "Tier 1: 1,500 Wagered" },
+  { id: 2, requiredWager: 6000, reward: 60, label: "Tier 2: 6,000 Wagered" },
+  { id: 3, requiredWager: 16000, reward: 150, label: "Tier 3: 16,000 Wagered" }
+];
+
+function getThreeDayCycleId() {
+  const now = new Date();
+  const epochDays = Math.floor(now.getTime() / (1000 * 60 * 60 * 24));
+  return Math.floor(epochDays / 3);
+}
+
+function renderMilestoneRewards(userMilestoneData) {
+  const container = document.getElementById("milestone-rewards-list");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const currentCycle = getThreeDayCycleId();
+  const userCycle = userMilestoneData?.cycleId === currentCycle ? userMilestoneData : { cycleId: currentCycle, wageredInCycle: 0, claimedTiers: [] };
+  const currentWagered = userCycle.wageredInCycle;
+
+  MILESTONE_TIERS.forEach(tier => {
+    const isClaimed = userCycle.claimedTiers.includes(tier.id);
+    const isUnlocked = currentWagered >= tier.requiredWager;
+    
+    let btnText = "Locked";
+    let btnDisabled = true;
+    let btnClass = "btn-secondary";
+
+    if (isClaimed) {
+      btnText = "Claimed ✓";
+    } else if (isUnlocked) {
+      btnText = `Claim ${tier.reward} Coins`;
+      btnDisabled = false;
+      btnClass = "btn-primary";
+    }
+
+    const progressPercent = Math.min(100, Math.floor((currentWagered / tier.requiredWager) * 100));
+
+    container.innerHTML += `
+      <div class="game-card" style="margin-bottom: 12px; padding: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h4 style="margin: 0; color: #fff;">${tier.label}</h4>
+          <span style="color: #3b82f6; font-weight: bold;">+${tier.reward} Tokens</span>
+        </div>
+        <p style="font-size: 13px; color: #9ca3af; margin-bottom: 8px;">Progress: ${currentWagered} / ${tier.requiredWager} (${progressPercent}%)</p>
+        <div style="background: #374151; height: 6px; border-radius: 3px; margin-bottom: 12px; overflow: hidden;">
+          <div style="background: #3b82f6; width: ${progressPercent}%; height: 100%;"></div>
+        </div>
+        <button class="${btnClass}" ${btnDisabled ? "disabled" : ""} onclick="claimMilestone(${tier.id}, ${tier.reward})">${btnText}</button>
+      </div>`;
+  });
+}
+
+window.claimMilestone = async (tierId, rewardAmount) => {
+  if (!currentUser) return;
+  const currentCycle = getThreeDayCycleId();
+  const userRef = doc(db, "users", currentUser.uid);
+
+  try {
+    await runTransaction(db, async (t) => {
+      const uDoc = await t.get(userRef);
+      if (!uDoc.exists()) throw new Error("User data not found!");
+
+      const data = uDoc.data();
+      let milestoneData = data.milestones || { cycleId: currentCycle, wageredInCycle: 0, claimedTiers: [] };
+
+      if (milestoneData.cycleId !== currentCycle) {
+        milestoneData = { cycleId: currentCycle, wageredInCycle: data.wagered || 0, claimedTiers: [] };
+      }
+
+      if (milestoneData.claimedTiers.includes(tierId)) {
+        throw new Error("Tier already claimed!");
+      }
+
+      const targetTier = MILESTONE_TIERS.find(tr => tr.id === tierId);
+      if (milestoneData.wageredInCycle < targetTier.requiredWager) {
+        throw new Error("Wager requirement not met yet!");
+      }
+
+      milestoneData.claimedTiers.push(tierId);
+
+      t.update(userRef, {
+        balance: data.balance + rewardAmount,
+        milestones: milestoneData
+      });
+    });
+
+    alert(`Successfully claimed ${rewardAmount} tokens!`);
+  } catch (err) {
+    alert(err.message);
+  }
+};
