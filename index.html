@@ -103,8 +103,19 @@
       <div id="game-stage-dice" class="game-stage hidden">
         <button class="btn-back" onclick="closeGame()">← Back to Games</button>
         <div class="game-container">
-          <h3 class="panel-title">Dice Game</h3>
-          <p class="panel-subtitle">Coming Soon!</p>
+          <h3 class="panel-title">Dice Roll</h3>
+          <div id="dice-display" style="font-size: 3.5rem; margin: 12px 0;">🎲</div>
+          
+          <div class="bet-controls">
+            <input type="number" id="dice-bet" class="coin-input" placeholder="Bet Amount" min="1">
+            <select id="dice-target" class="coin-input" style="margin-top: 8px;">
+              <option value="under3">Roll 1-2 (2x Payout)</option>
+              <option value="over3">Roll 4-6 (2x Payout)</option>
+              <option value="exact6">Exact 6 (5x Payout)</option>
+            </select>
+            <button class="btn-game" style="background: #2563eb; color: #fff; margin-top: 10px; width: 100%;" onclick="playDice()">Roll Dice</button>
+          </div>
+          <p id="dice-result" class="game-status-text"></p>
         </div>
       </div>
 
@@ -113,7 +124,35 @@
         <button class="btn-back" onclick="closeGame()">← Back to Games</button>
         <div class="game-container">
           <h3 class="panel-title">Blackjack</h3>
-          <p class="panel-subtitle">Coming Soon!</p>
+          
+          <div id="bj-table" style="width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; margin: 12px 0; text-align: left;">
+            <div style="background: #1f2937; padding: 12px; border-radius: 10px;">
+              <span style="color: #9ca3af; font-size: 0.85rem;">DEALER HAND</span>
+              <div style="font-size: 1.1rem; font-weight: bold; margin-top: 4px;">
+                <span id="bj-dealer-hand">-</span>
+                <span id="bj-dealer-score" class="text-blue" style="margin-left: 8px;"></span>
+              </div>
+            </div>
+            <div style="background: #1f2937; padding: 12px; border-radius: 10px;">
+              <span style="color: #9ca3af; font-size: 0.85rem;">YOUR HAND</span>
+              <div style="font-size: 1.1rem; font-weight: bold; margin-top: 4px;">
+                <span id="bj-player-hand">-</span>
+                <span id="bj-player-score" class="text-green" style="margin-left: 8px;"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bet-controls">
+            <input type="number" id="bj-bet" class="coin-input" placeholder="Bet Amount" min="1">
+            <div id="bj-setup-btns" style="margin-top: 10px;">
+              <button class="btn-game" style="background: #2563eb; color: #fff; width: 100%;" onclick="startBlackjack()">Deal Hand</button>
+            </div>
+            <div id="bj-action-btns" class="game-buttons hidden" style="margin-top: 10px;">
+              <button class="btn-game" style="background: #059669; color: #fff;" onclick="hitBlackjack()">Hit</button>
+              <button class="btn-game" style="background: #dc2626; color: #fff;" onclick="standBlackjack()">Stand</button>
+            </div>
+          </div>
+          <p id="bj-result" class="game-status-text"></p>
         </div>
       </div>
 
