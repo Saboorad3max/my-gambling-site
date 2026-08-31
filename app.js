@@ -584,3 +584,13 @@ window.rejectWithdraw = async (reqId, userId, refundCost) => {
   });
   alert("Request rejected & coins refunded!");
 };
+// Run this once in your browser console or paste it temporarily in your code
+window.clearEntireStore = async () => {
+  if (confirm("Are you sure you want to permanently delete ALL items in Firestore?")) {
+    const snap = await getDocs(collection(db, "store"));
+    snap.forEach(async (d) => {
+      await deleteDoc(doc(db, "store", d.id));
+    });
+    alert("Store completely wiped from database!");
+  }
+};
