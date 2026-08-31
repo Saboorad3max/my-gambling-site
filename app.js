@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, addDoc, onSnapshot, query, orderBy, limit, runTransaction, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, addDoc, onSnapshot, query, orderBy, limit, runTransaction, where, getDocs, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -32,9 +32,9 @@ document.getElementById("btn-signup")?.addEventListener("click", async () => {
     const res = await createUserWithEmailAndPassword(auth, email, password);
     const isAdmin = email.toLowerCase() === "saboorezz@gmail.com";
     
-    // Set starting balance to 0 for all new accounts
+    // Initialize starting balance and wagered tracker at 0
     await setDoc(doc(db, "users", res.user.uid), {
-      email, username, balance: 0, isAdmin
+      email, username, balance: 0, wagered: 0, isAdmin
     });
     alert("Account created successfully!");
   } catch (err) { alert(err.message); }
@@ -126,7 +126,11 @@ window.play3DCoinflip = async (choice) => {
   resultText.className = "game-status-text text-blue";
 
   setTimeout(async () => {
-    await updateDoc(doc(db, "users", currentUser.uid), { balance: newBalance });
+    // Record wager and adjust user balance
+    await updateDoc(doc(db, "users", currentUser.uid), { 
+      balance: newBalance,
+      wagered: increment(bet)
+    });
 
     if (won) {
       resultText.innerText = `🎉 You Won! Flipped ${outcome.toUpperCase()}. (+${bet} coins)`;
@@ -164,11 +168,17 @@ window.playDice = async () => {
 
   if (won) {
     const profit = bet * (multiplier - 1);
-    await updateDoc(doc(db, "users", currentUser.uid), { balance: userData.balance + profit });
+    await updateDoc(doc(db, "users", currentUser.uid), { 
+      balance: userData.balance + profit,
+      wagered: increment(bet)
+    });
     resultText.innerText = `Rolled ${roll}! You won ${profit} coins! 🎉`;
     resultText.className = "game-status-text text-green";
   } else {
-    await updateDoc(doc(db, "users", currentUser.uid), { balance: userData.balance - bet });
+    await updateDoc(doc(db, "users", currentUser.uid), { 
+      balance: userData.balance - bet,
+      wagered: increment(bet)
+    });
     resultText.innerText = `Rolled ${roll}. You lost ${bet} coins.`;
     resultText.className = "game-status-text text-red";
   }
@@ -225,6 +235,11 @@ window.startBlackjack = async () => {
     resultText.className = "game-status-text text-red";
     return;
   }
+
+  // Increment total wagered amount upon starting the hand
+  await updateDoc(doc(db, "users", currentUser.uid), {
+    wagered: increment(bjBetAmount)
+  });
 
   bjDeck = createDeck();
   playerHand = [bjDeck.pop(), bjDeck.pop()];
@@ -537,10 +552,16 @@ function loadAdminPanel() {
     list.innerHTML = "";
     snap.forEach(d => {
       const u = d.data();
+      const uid = d.id;
       list.innerHTML += `
-        <div class="user-row" style="display:flex; justify-content:space-between; margin-bottom:8px;">
-          <span>${u.username} (${u.email}) - <strong>${u.balance} Coins</strong></span>
-          <button onclick="openAdminTip('${u.username}')">Tip User</button>
+        <div class="user-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:#111827; padding:8px 12px; border-radius:6px;">
+          <span style="cursor:pointer;" onclick="viewUserStats('${uid}', '${u.username.replace(/'/g, "\\'")}', '${u.email}', ${u.balance}, ${u.wagered || 0})">
+            <strong style="color:#3b82f6; text-decoration:underline;">${u.username}</strong> (${u.email}) - <strong>${u.balance} Coins</strong>
+          </span>
+          <div style="display:flex; gap:6px;">
+            <button onclick="openAdminTip('${u.username.replace(/'/g, "\\'")}')" style="background:#2563eb; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">Tip</button>
+            <button onclick="deductUserBalance('${uid}', '${u.username.replace(/'/g, "\\'")}', ${u.balance})" style="background:#dc2626; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">Deduct</button>
+          </div>
         </div>`;
     });
   });
@@ -566,9 +587,47 @@ function loadAdminPanel() {
   });
 }
 
+// Open User Stats / Wager Modal
+window.viewUserStats = (uid, username, email, balance, wagered) => {
+  document.getElementById("stats-username").innerText = `${username}'s Profile`;
+  document.getElementById("stats-email").innerText = email;
+  document.getElementById("stats-balance").innerText = balance;
+  document.getElementById("stats-wagered").innerText = wagered;
+  document.getElementById("user-stats-modal").classList.remove("hidden");
+};
+
+document.getElementById("btn-close-stats")?.addEventListener("click", () => {
+  document.getElementById("user-stats-modal").classList.add("hidden");
+});
+
+// Admin Tip Action
 window.openAdminTip = (username) => {
   document.getElementById("tip-recipient").value = username;
   document.getElementById("tip-modal").classList.remove("hidden");
+};
+
+// Admin Deduct Balance Action
+window.deductUserBalance = async (uid, username, currentBalance) => {
+  const amountStr = prompt(`Enter number of coins to deduct from ${username}:`);
+  if (!amountStr) return;
+
+  const amount = parseInt(amountStr);
+  if (isNaN(amount) || amount <= 0) {
+    return alert("Please enter a valid positive number.");
+  }
+
+  if (amount > currentBalance) {
+    return alert(`Cannot deduct ${amount} coins. User only has ${currentBalance} coins.`);
+  }
+
+  try {
+    await updateDoc(doc(db, "users", uid), {
+      balance: increment(-amount)
+    });
+    alert(`Deducted ${amount} coins from ${username}.`);
+  } catch (err) {
+    alert(err.message);
+  }
 };
 
 window.approveWithdraw = async (reqId) => {
