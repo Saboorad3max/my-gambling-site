@@ -198,7 +198,7 @@ function loadStore() {
       card.style.border = "1px solid #374151";
       card.style.borderRadius = "8px";
       card.style.marginBottom = "10px";
-      card.style.backgroundColor = "#1f2937";
+      card.style.backgroundColor = "#111827";
       
       card.innerHTML = `
         <div style="margin-bottom: 8px;">
@@ -207,30 +207,34 @@ function loadStore() {
         </div>
         
         <div style="display:flex; gap: 5px; margin-bottom: 8px;">
-          <input type="number" class="coin-input" placeholder="e.g. 70" min="${item.cost}" style="flex:1; padding: 8px; border-radius:4px; border:1px solid #4b5563; background:#111827; color:#fff;">
+          <input type="number" class="coin-input" placeholder="e.g. 70" min="${item.cost}" style="flex:1; padding: 8px; border-radius:4px; border:1px solid #4b5563; background:#1f2937; color:#fff;">
           <button type="button" class="btn-quick-add" data-add="10" style="padding: 4px 8px; font-size: 0.8em; background: #374151; color: #fff; border: none; border-radius: 4px; cursor: pointer;">+10</button>
           <button type="button" class="btn-quick-add" data-add="50" style="padding: 4px 8px; font-size: 0.8em; background: #374151; color: #fff; border: none; border-radius: 4px; cursor: pointer;">+50</button>
         </div>
 
-        <div class="calc-display-box" style="background: #111827; padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 10px; border: 1px dashed #4b5563;">
+        <!-- Hidden container by default -->
+        <div class="calc-display-box" style="display: none; background: #0b0f19; padding: 10px; border-radius: 6px; text-align: center; margin-bottom: 10px; border: 1px dashed #4b5563;">
           <span style="font-size:0.8em; color:#9ca3af;">Calculated Output:</span>
-          <div class="calc-output" style="font-size: 1.05em; font-weight: bold; color: #10b981; margin-top: 3px;">Type coins above (e.g., 70)</div>
+          <div class="calc-output" style="font-size: 1.05em; font-weight: bold; color: #10b981; margin-top: 3px;"></div>
         </div>
 
-        <button class="claim-btn" style="width: 100%; padding: 10px; background: #2563eb; color: #fff; font-weight: bold; border: none; border-radius: 6px; cursor: pointer;">Withdraw Time / Item</button>`;
+        <button class="claim-btn" style="width: 100%; padding: 10px; background: #2563eb; color: #fff; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-top: auto;">Withdraw Time / Item</button>`;
 
       const input = card.querySelector(".coin-input");
+      const box = card.querySelector(".calc-display-box");
       const output = card.querySelector(".calc-output");
       const claimBtn = card.querySelector(".claim-btn");
 
-      // Function to recalculate and display output based on typed coin value
+      // Dynamic calculation toggle
       const calculateTime = () => {
         const coinsSpent = parseInt(input.value);
+
         if (isNaN(coinsSpent) || coinsSpent <= 0) {
-          output.innerText = "Type coins above (e.g., 70)";
-          output.style.color = "#10b981";
+          box.style.display = "none";
           return;
         }
+
+        box.style.display = "block";
 
         if (coinsSpent < item.cost) {
           output.innerText = `Min required: ${item.cost} coins`;
@@ -246,10 +250,8 @@ function loadStore() {
         output.style.color = "#10b981";
       };
 
-      // Listen for typing inside input field
       input.addEventListener("input", calculateTime);
 
-      // Handle +10 and +50 quick increment buttons
       card.querySelectorAll(".btn-quick-add").forEach(btn => {
         btn.addEventListener("click", () => {
           const addVal = parseInt(btn.dataset.add);
@@ -259,7 +261,6 @@ function loadStore() {
         });
       });
 
-      // Submit withdrawal request on button click
       claimBtn.onclick = () => {
         const coinsSpent = parseInt(input.value);
         if (isNaN(coinsSpent) || coinsSpent < item.cost) {
@@ -309,7 +310,6 @@ async function requestWithdraw(name, baseCost, totalCoinsSpent) {
 
 // --- ADMIN PANEL FUNCTIONS ---
 function loadAdminPanel() {
-  // Add item / update rate
   document.getElementById("btn-add-item").onclick = async () => {
     const name = document.getElementById("new-item-name").value.trim();
     const cost = parseInt(document.getElementById("new-item-cost").value);
@@ -319,7 +319,6 @@ function loadAdminPanel() {
     alert("Store item updated!");
   };
 
-  // View users & quick tip
   onSnapshot(collection(db, "users"), (snap) => {
     const list = document.getElementById("admin-user-list");
     list.innerHTML = "";
@@ -333,7 +332,6 @@ function loadAdminPanel() {
     });
   });
 
-  // View pending withdrawals with calculation details
   onSnapshot(collection(db, "withdrawals"), (snap) => {
     const list = document.getElementById("admin-withdraw-list");
     list.innerHTML = "";
