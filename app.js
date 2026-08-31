@@ -189,34 +189,85 @@ function loadStore() {
     container.innerHTML = "";
     snap.forEach(d => {
       const item = d.data();
-      container.innerHTML += `
-        <div class="store-card">
-          <div>
-            <h4>${item.name}</h4>
-            <p>${item.cost} Coins</p>
-          </div>
-          <button onclick="requestWithdraw('${item.name}', ${item.cost})">Claim</button>
-        </div>`;
+      const card = document.createElement("div");
+      card.className = "store-card";
+      card.style.display = "flex";
+      card.style.flexDirection = "column";
+      card.style.alignItems = "stretch";
+      
+      card.innerHTML = `
+        <div>
+          <h4 style="margin:0;">${item.name}</h4>
+          <p style="margin: 5px 0; color: #3b82f6;">${item.cost} Coins / unit</p>
+        </div>
+        <input type="number" class="coin-input" placeholder="Coins to spend (min ${item.cost})" min="${item.cost}" style="margin: 8px 0; width: 100%;">
+        <p class="calc-output" style="margin: 0 0 10px 0; font-size: 0.85em; color: #10b981;">Enter coins to calculate quantity</p>
+        <button class="claim-btn">Claim Request</button>`;
+
+      const input = card.querySelector(".coin-input");
+      const output = card.querySelector(".calc-output");
+      const claimBtn = card.querySelector(".claim-btn");
+
+      // Live dynamic minute/item quantity calculation
+      input.addEventListener("input", () => {
+        const coinsSpent = parseInt(input.value);
+        if (isNaN(coinsSpent) || coinsSpent < item.cost) {
+          output.innerText = `Minimum required: ${item.cost} coins`;
+          output.style.color = "#ef4444";
+        } else {
+          const quantity = (coinsSpent / item.cost).toFixed(1);
+          const isPerMin = item.name.toLowerCase().includes("per min") || item.name.toLowerCase().includes("time");
+          const unitLabel = isPerMin ? "min" : "units/matches";
+          
+          output.innerText = `You will get: ${quantity} ${unitLabel}`;
+          output.style.color = "#10b981";
+        }
+      });
+
+      claimBtn.onclick = () => {
+        const coinsSpent = parseInt(input.value);
+        if (isNaN(coinsSpent) || coinsSpent < item.cost) {
+          return alert(`Please enter at least ${item.cost} coins!`);
+        }
+        requestWithdraw(item.name, item.cost, coinsSpent);
+      };
+
+      container.appendChild(card);
     });
   });
 }
 
-window.requestWithdraw = async (name, cost) => {
-  if (userData.balance < cost) return alert("Not enough coins!");
+async function requestWithdraw(name, baseCost, totalCoinsSpent) {
+  if (userData.balance < totalCoinsSpent) return alert("Not enough coins!");
 
-  await runTransaction(db, async (t) => {
-    t.update(doc(db, "users", currentUser.uid), { balance: userData.balance - cost });
-    t.set(doc(collection(db, "withdrawals")), {
-      userId: currentUser.uid,
-      username: userData.username,
-      itemName: name,
-      cost: cost,
-      status: "pending"
+  const quantity = (totalCoinsSpent / baseCost).toFixed(1);
+  const isPerMin = name.toLowerCase().includes("per min") || name.toLowerCase().includes("time");
+  const unitLabel = isPerMin ? "min" : "units/matches";
+  const displayDetails = `${quantity} ${unitLabel} (${totalCoinsSpent} coins spent)`;
+
+  try {
+    await runTransaction(db, async (t) => {
+      const userRef = doc(db, "users", currentUser.uid);
+      const uDoc = await t.get(userRef);
+      if (uDoc.data().balance < totalCoinsSpent) throw new Error("Not enough coins!");
+
+      t.update(userRef, { balance: uDoc.data().balance - totalCoinsSpent });
+      t.set(doc(collection(db, "withdrawals")), {
+        userId: currentUser.uid,
+        username: userData.username,
+        itemName: name,
+        cost: totalCoinsSpent,
+        details: displayDetails,
+        status: "pending",
+        timestamp: new Date()
+      });
     });
-  });
 
-  alert("Withdrawal request sent to Admin for approval!");
-};
+    alert(`Withdrawal request submitted for ${displayDetails}! Sent to Admin for approval.`);
+  } catch (err) {
+    alert(err.message);
+  }
+}
 
 // --- ADMIN PANEL FUNCTIONS ---
 function loadAdminPanel() {
@@ -244,16 +295,17 @@ function loadAdminPanel() {
     });
   });
 
-  // View pending withdrawals
+  // View pending withdrawals with calculation details
   onSnapshot(collection(db, "withdrawals"), (snap) => {
     const list = document.getElementById("admin-withdraw-list");
     list.innerHTML = "";
     snap.forEach(d => {
       const w = d.data();
       if (w.status === "pending") {
+        const itemInfo = w.details ? w.details : `${w.itemName} (${w.cost}c)`;
         list.innerHTML += `
           <div class="req-row">
-            <span><strong>${w.username}</strong> requested <strong>${w.itemName}</strong> (${w.cost}c)</span>
+            <span><strong>${w.username}</strong> requested <strong>${itemInfo}</strong></span>
             <div>
               <button onclick="approveWithdraw('${d.id}')">Approve</button>
               <button class="btn-danger" onclick="rejectWithdraw('${d.id}', '${w.userId}', ${w.cost})">Reject & Refund</button>
