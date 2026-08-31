@@ -20,17 +20,6 @@ const db = getFirestore(app);
 let currentUser = null;
 let userData = null;
 
-// Default store rates setup
-const defaultItems = [
-  { name: "android phone per min", cost: 7 },
-  { name: "iphone per min", cost: 20 },
-  { name: "mama phone per min", cost: 10 },
-  { name: "livik 1 match", cost: 400 },
-  { name: "mobile time", cost: 15 },
-  { name: "tv time", cost: 25 },
-  { name: "abeeha phone time", cost: 30 }
-];
-
 // --- AUTHENTICATION ---
 document.getElementById("btn-signup")?.addEventListener("click", async () => {
   const email = document.getElementById("auth-email").value.trim();
@@ -79,7 +68,7 @@ onAuthStateChanged(auth, async (user) => {
       }
     });
 
-    await initDefaultStore();
+    // Removed initDefaultStore() so deleted items are NOT re-created on refresh
     loadStore();
     listenChat();
   } else {
@@ -356,17 +345,7 @@ document.getElementById("btn-confirm-tip")?.addEventListener("click", async () =
   } catch (err) { alert(err.message); }
 });
 
-// --- STORE & INLINE MODAL MANAGEMENT ---
-async function initDefaultStore() {
-  for (let item of defaultItems) {
-    const itemRef = doc(db, "store", item.name);
-    const snap = await getDoc(itemRef);
-    if (!snap.exists()) {
-      await setDoc(itemRef, item);
-    }
-  }
-}
-
+// --- STORE MANAGEMENT ---
 function loadStore() {
   onSnapshot(collection(db, "store"), (snap) => {
     const container = document.getElementById("store-list");
