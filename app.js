@@ -696,7 +696,7 @@ function loadAdminPanel() {
       const uid = d.id;
       list.innerHTML += `
         <div class="user-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:#111827; padding:8px 12px; border-radius:6px;">
-          <span style="cursor:pointer;" onclick="viewUserStats('${uid}', '${u.username.replace(/'/g, "\\'")}', '${u.email}', ${u.balance}, ${u.wagered || 0})">
+          <span style="cursor:pointer;" onclick="viewUserStats('${uid}', '${u.username.replace(/'/g, "\\'")}', '${u.email}', ${u.balance}, ${u.wagered || 0}, '${encodeURIComponent(JSON.stringify(u.claimedMilestones || []))}')">
             <strong style="color:#3b82f6; text-decoration:underline;">${u.username}</strong> (${u.email}) - <strong>${u.balance} Coins</strong>
           </span>
           <div style="display:flex; gap:6px;">
@@ -728,11 +728,65 @@ function loadAdminPanel() {
   });
 }
 
-window.viewUserStats = (uid, username, email, balance, wagered) => {
+window.viewUserStats = (uid, username, email, balance, wagered, encodedClaimed) => {
+  let claimedArray = [];
+  try {
+    claimedArray = JSON.parse(decodeURIComponent(encodedClaimed));
+  } catch (e) {
+    claimedArray = [];
+  }
+
+  // Define milestones mapping dictionary to display specific claimed rewards
+  const milestonesDef = [
+    { id: 1, target: 100, reward: 20 },
+    { id: 2, target: 500, reward: 100 },
+    { id: 3, target: 1500, reward: 350 },
+    { id: 4, target: 5000, reward: 1200 }
+  ];
+
+  let claimedHtml = "";
+  let totalClaimedCoins = 0;
+
+  if (claimedArray.length === 0) {
+    claimedHtml = `<p style="color: #9ca3af; font-size: 0.9rem;">No milestones claimed yet.</p>`;
+  } else {
+    claimedHtml = `<ul style="list-style-type: disc; padding-left: 20px; color: #d1d5db; font-size: 0.9rem;">`;
+    claimedArray.forEach(id => {
+      const found = milestonesDef.find(m => m.id === id);
+      if (found) {
+        totalClaimedCoins += found.reward;
+        claimedHtml += `<li>Milestone ${found.id} (Wager ${found.target} Coins): <strong class="text-green">+${found.reward} Coins</strong></li>`;
+      } else {
+        claimedHtml += `<li>Milestone ID ${id}</li>`;
+      }
+    });
+    claimedHtml += `</ul>`;
+    claimedHtml += `<p style="margin-top: 8px; color: #60a5fa; font-size: 0.9rem;"><strong>Total Milestone Coins Claimed:</strong> ${totalClaimedCoins}</p>`;
+  }
+
   document.getElementById("stats-username").innerText = `${username}'s Profile`;
   document.getElementById("stats-email").innerText = email;
   document.getElementById("stats-balance").innerText = balance;
   document.getElementById("stats-wagered").innerText = wagered;
+
+  // Dynamically inject or update the claimed milestone section in the stats modal container
+  let milestoneStatsContainer = document.getElementById("stats-milestones-container");
+  if (!milestoneStatsContainer) {
+    const statsModalContent = document.querySelector("#user-stats-modal .modal-content") || document.getElementById("user-stats-modal");
+    milestoneStatsContainer = document.createElement("div");
+    milestoneStatsContainer.id = "stats-milestones-container";
+    milestoneStatsContainer.style.cssText = "margin-top: 16px; border-top: 1px solid #374151; padding-top: 12px;";
+    statsModalContent.appendChild(milestoneStatsContainer);
+  }
+
+  milestoneStatsContainer.innerHTML = `
+    <h4 style="color: #fff; margin-bottom: 8px; font-size: 1rem;">Claimed Rewards & Milestones:</h4>
+    ${claimedHtml}
+    <div style="margin-top: 12px; display: flex; gap: 8px;">
+      <button onclick="openAdminTip('${username.replace(/'/g, "\\'")}')" style="background:#2563eb; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.85rem;">Tip Player</button>
+    </div>
+  `;
+
   document.getElementById("user-stats-modal").classList.remove("hidden");
 };
 
