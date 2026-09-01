@@ -737,7 +737,7 @@ window.approveWithdraw = async (reqId) => {
 
 window.rejectWithdraw = async (reqId, userId, refundCost) => {
   try {
-    await updateDoc(doc(doc(db, "users", userId)), { balance: increment(refundCost) });
+    await updateDoc(doc(db, "users", userId), { balance: increment(refundCost) });
     await updateDoc(doc(db, "withdrawals", reqId), { status: "rejected" });
     alert("Request rejected & coins refunded!");
   } catch (err) {
