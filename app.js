@@ -22,6 +22,42 @@ let userData = null;
 let housePoolData = { poolBalance: 10000, maxLossLimit: 5000 };
 let isGameProcessing = false;
 
+// --- TIP TOAST NOTIFICATIONS ---
+function showTipNotification(message) {
+  const toast = document.getElementById("tip-notification-toast");
+  if (!toast) return;
+
+  toast.innerText = message;
+  toast.classList.remove("hidden");
+  toast.style.opacity = "1";
+
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    setTimeout(() => {
+      toast.classList.add("hidden");
+    }, 300);
+  }, 2000);
+}
+
+let initialTipLoad = true;
+function listenForTipNotifications() {
+  const q = query(collection(db, "tip_notifications"), orderBy("timestamp", "desc"), limit(1));
+  
+  onSnapshot(q, (snapshot) => {
+    if (initialTipLoad) {
+      initialTipLoad = false;
+      return;
+    }
+
+    snapshot.docChanges().forEach((change) => {
+      if (change.type === "added") {
+        const data = change.doc.data();
+        showTipNotification(data.message);
+      }
+    });
+  });
+}
+
 // Helper function to calculate target win probability based on bet amount & house pool status
 function getWinChance(bet) {
   // HARD RECOVERY LOCK: 100% loss rate when house hits max loss limit
@@ -103,6 +139,7 @@ onAuthStateChanged(auth, async (user) => {
 
     loadStore();
     listenChat();
+    listenForTipNotifications();
   } else {
     document.getElementById("auth-container").classList.remove("hidden");
     document.getElementById("app-container").classList.add("hidden");
@@ -432,30 +469,43 @@ document.getElementById("btn-confirm-tip")?.addEventListener("click", async () =
   const recipientName = document.getElementById("tip-recipient").value.trim();
   const amount = parseInt(document.getElementById("tip-amount").value);
 
-  if (!recipientName || isNaN(amount) || amount <= 0) return alert("Invalid input!");
+  if (!recipientName || isNaN(amount) || amount <= 0) return alert("Invalid tip details");
 
   const isAdmin = userData.isAdmin || currentUser.email.toLowerCase() === "saboorezz@gmail.com";
 
   if (!isAdmin && amount > userData.balance) {
-    return alert("Not enough balance!");
+    return alert("Insufficient balance!");
   }
 
   try {
     const q = query(collection(db, "users"), where("username", "==", recipientName));
     const snap = await getDocs(q);
-    if (snap.empty) throw new Error("User not found!");
+    if (snap.empty) throw new Error("Recipient does not exist");
 
     const targetDoc = snap.docs[0];
 
+    // Balance update adjustments
     if (!isAdmin) {
       await updateDoc(doc(db, "users", currentUser.uid), { balance: increment(-amount) });
     }
-
     await updateDoc(doc(db, "users", targetDoc.id), { balance: increment(amount) });
 
-    alert(`Successfully tipped ${amount} coins to ${recipientName}!`);
-    document.getElementById("tip-modal").classList.add("hidden");
-  } catch (err) { alert(err.message); }
+    if (isAdmin) {
+      // Admin route: Local popup notification only
+      showTipNotification(`Added ${amount} coins to balance`);
+    } else {
+      // Player route: Public global broadcast
+      const tipMsg = `${userData.username} tipped ${amount} coins to ${recipientName}`;
+      await addDoc(collection(db, "tip_notifications"), {
+        message: tipMsg,
+        timestamp: new Date()
+      });
+    }
+
+    document.getElementById("tip-modal")?.classList.add("hidden");
+  } catch (err) {
+    alert(err.message);
+  }
 });
 
 // --- STORE MANAGEMENT ---
