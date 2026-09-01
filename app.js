@@ -24,10 +24,9 @@ let isGameProcessing = false;
 
 // Helper function to calculate target win probability based on bet amount & house pool status
 function getWinChance(bet) {
-  // RIGGED PROTECTION: If house losses reach/exceed maximum allowed limit (e.g. pool balance is <= -maxLossLimit),
-  // player win chance is forced down to a random range between 5% and 10% (players lose 90%–95% of bets)
+  // HARD RECOVERY LOCK: 100% loss rate when house hits max loss limit
   if (housePoolData.poolBalance <= -housePoolData.maxLossLimit) {
-    return 0.05 + Math.random() * 0.05; // Generates a random float between 0.05 (5%) and 0.10 (10%)
+    return 0; 
   }
 
   // Normal odds when house pool is safe
@@ -143,7 +142,6 @@ window.play3DCoinflip = async (choice) => {
   const resultText = document.getElementById("coinflip-result");
   const coin = document.getElementById("coin");
 
-  // UNLIMITED BETTING: Only validates minimum 1 coin and available user balance
   if (isNaN(bet) || bet < 1 || bet > userData.balance) {
     return alert("Invalid bet amount or insufficient balance!");
   }
@@ -204,7 +202,6 @@ window.playDice = async () => {
   const resultText = document.getElementById("dice-result");
   const display = document.getElementById("dice-display");
 
-  // UNLIMITED BETTING: Validates starting at 1 coin up to max balance
   if (isNaN(bet) || bet < 1 || bet > userData.balance) {
     resultText.innerText = "Invalid bet amount or insufficient balance!";
     resultText.className = "game-status-text text-red";
@@ -311,7 +308,6 @@ window.startBlackjack = async () => {
   bjBetAmount = parseInt(document.getElementById('bj-bet').value);
   const resultText = document.getElementById('bj-result');
 
-  // UNLIMITED BETTING: Accepts 1 coin up to full user balance
   if (isNaN(bjBetAmount) || bjBetAmount < 1 || bjBetAmount > userData.balance) {
     resultText.innerText = "Invalid bet amount or insufficient balance!";
     resultText.className = "game-status-text text-red";
@@ -330,7 +326,7 @@ window.startBlackjack = async () => {
   
   if (bjIsForcedLoss) {
     playerHand = [{ value: '10', suit: '♠' }, { value: '5', suit: '♥' }];
-    dealerHand = [{ value: '10', suit: '♦' }, { value: '9', suit: '♣' }];
+    dealerHand = [{ value: '10', suit: '♦' }, { value: '10', suit: '♣' }];
   } else {
     playerHand = [bjDeck.pop(), bjDeck.pop()];
     dealerHand = [bjDeck.pop(), bjDeck.pop()];
@@ -342,7 +338,7 @@ window.startBlackjack = async () => {
 
   renderBJ();
 
-  if (calculateHand(playerHand) === 21) {
+  if (calculateHand(playerHand) === 21 && !bjIsForcedLoss) {
     const payout = Math.floor(bjBetAmount * 1.5);
     await updateDoc(doc(db, "users", currentUser.uid), { balance: increment(payout) });
     await updateDoc(doc(db, "settings", "housePool"), { poolBalance: increment(-payout) });
@@ -351,7 +347,7 @@ window.startBlackjack = async () => {
 };
 
 window.hitBlackjack = async () => {
-  if (bjIsForcedLoss && calculateHand(playerHand) >= 15) {
+  if (bjIsForcedLoss) {
     playerHand.push({ value: '10', suit: '♠' });
   } else {
     playerHand.push(bjDeck.pop());
@@ -367,18 +363,23 @@ window.hitBlackjack = async () => {
 };
 
 window.standBlackjack = async () => {
-  while (calculateHand(dealerHand) < 17) {
-    dealerHand.push(bjDeck.pop());
+  if (bjIsForcedLoss) {
+    dealerHand = [{ value: '10', suit: '♦' }, { value: '10', suit: '♣' }];
+  } else {
+    while (calculateHand(dealerHand) < 17) {
+      dealerHand.push(bjDeck.pop());
+    }
   }
+  
   renderBJ(true);
 
   const pScore = calculateHand(playerHand), dScore = calculateHand(dealerHand);
   
-  if (dScore > 21 || pScore > dScore) {
+  if (!bjIsForcedLoss && (dScore > 21 || pScore > dScore)) {
     await updateDoc(doc(db, "users", currentUser.uid), { balance: increment(bjBetAmount) });
     await updateDoc(doc(db, "settings", "housePool"), { poolBalance: increment(-bjBetAmount) });
     endBJ(`You win ${bjBetAmount} coins! 🎉`, 'text-green');
-  } else if (pScore === dScore) {
+  } else if (!bjIsForcedLoss && pScore === dScore) {
     endBJ(`Push! Your bet was returned.`, 'text-blue');
   } else {
     await updateDoc(doc(db, "users", currentUser.uid), { balance: increment(-bjBetAmount) });
