@@ -386,9 +386,9 @@ function loadMilestones() {
   const milestones = [
     { id: 1, target: 100, reward: 5 },
     { id: 2, target: 500, reward: 10 },
-    { id: 3, target: 1500, reward: 30 },
-    { id: 4, target: 3000, reward: 70 },
-    { id: 5, target: 5000, reward: 140 }
+    { id: 3, target: 1500, reward: 15 },
+    { id: 4, target: 3000, reward: 25 },
+    { id: 5, target: 5000, reward: 49 }
   ];
 
   const wagered = userData?.wagered || 0;
@@ -765,9 +765,9 @@ window.viewUserStats = (uid, username, email, balance, wagered, encodedClaimed) 
   const milestonesDef = [
     { id: 1, target: 100, reward: 5 },
     { id: 2, target: 500, reward: 10 },
-    { id: 3, target: 1500, reward: 30 },
-    { id: 4, target: 3000, reward: 70 },
-    { id: 5, target: 5000, reward: 140 }
+    { id: 3, target: 1500, reward: 15 },
+    { id: 4, target: 3000, reward: 25 },
+    { id: 5, target: 5000, reward: 49 }
   ];
 
   let claimedHtml = "";
