@@ -528,3 +528,26 @@ input:focus {
 .hidden {
   display: none !important;
 }
+
+/* --- TOP-LEFT TIP TOAST NOTIFICATION --- */
+.tip-toast {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background-color: #1e293b;
+  color: #38bdf8;
+  border: 1px solid #3b82f6;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  z-index: 9999;
+  transition: opacity 0.3s ease-in-out;
+  pointer-events: none;
+}
+
+.tip-toast.hidden {
+  display: none !important;
+  opacity: 0;
+}
