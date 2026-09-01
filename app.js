@@ -19,18 +19,17 @@ const db = getFirestore(app);
 
 let currentUser = null;
 let userData = null;
-let globalSettings = { housePool: 10000 }; // Default pool tracking
+let globalSettings = { housePool: 10000 };
 
 // Helper function to calculate target win probability based on bet amount and house pool
 function getAdjustedWinChance(bet, potentialWin, housePool) {
-  // If house pool has dropped too low (or hits 0), force heavy loss rate (75% to 85% losses -> 15% to 25% win chance)
   if (housePool <= 0 || potentialWin > housePool) {
-    return 0.15; // Only 15% win chance (meaning 85% loss rate)
+    return 0.15; // Heavy penalty if pool is dry
   }
   
-  if (bet < 10) return 0.40;        // Less than 10c -> 40%[cite: 1]
-  if (bet > 20) return 0.25;        // More than 20c -> 25%[cite: 1]
-  return 0.30;                      // Between 10c and 20c (inclusive) -> 30%[cite: 1]
+  if (bet < 10) return 0.40;
+  if (bet > 20) return 0.25;
+  return 0.30;
 }
 
 // Helper function to check and handle 3-day milestone resets
@@ -47,7 +46,7 @@ async function checkMilestoneReset(userId, userDocData) {
         lastMilestoneReset: now
       });
     } catch (err) {
-      console.error("Error resetting milestones:", err);[cite: 1]
+      console.error("Error resetting milestones:", err);
     }
   }
 }
@@ -58,17 +57,17 @@ document.getElementById("btn-signup")?.addEventListener("click", async () => {
   const password = document.getElementById("auth-password").value;
   const username = document.getElementById("auth-username").value.trim();
 
-  if (!email || !password || !username) return alert("Fill all fields!");[cite: 1]
+  if (!email || !password || !username) return alert("Fill all fields!");
 
   try {
     const res = await createUserWithEmailAndPassword(auth, email, password);
-    const isAdmin = email.toLowerCase() === "saboorezz@gmail.com";[cite: 1]
+    const isAdmin = email.toLowerCase() === "saboorezz@gmail.com";
     
     await setDoc(doc(db, "users", res.user.uid), {
-      email, username, balance: 0, wagered: 0, isAdmin, claimedMilestones: [], lastMilestoneReset: Date.now()[cite: 1]
+      email, username, balance: 0, wagered: 0, isAdmin, claimedMilestones: [], lastMilestoneReset: Date.now()
     });
-    alert("Account created successfully!");[cite: 1]
-  } catch (err) { alert(err.message); }[cite: 1]
+    alert("Account created successfully!");
+  } catch (err) { alert(err.message); }
 });
 
 document.getElementById("btn-login")?.addEventListener("click", async () => {
@@ -76,7 +75,7 @@ document.getElementById("btn-login")?.addEventListener("click", async () => {
   const password = document.getElementById("auth-password").value;
   try {
     await signInWithEmailAndPassword(auth, email, password);
-  } catch (err) { alert(err.message); }[cite: 1]
+  } catch (err) { alert(err.message); }
 });
 
 document.getElementById("btn-logout")?.addEventListener("click", () => signOut(auth));
@@ -87,7 +86,6 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById("auth-container").classList.add("hidden");
     document.getElementById("app-container").classList.remove("hidden");
 
-    // Listen to global settings (House Pool)
     onSnapshot(doc(db, "settings", "casino"), (docSnap) => {
       if (docSnap.exists()) {
         globalSettings = docSnap.data();
@@ -99,8 +97,6 @@ onAuthStateChanged(auth, async (user) => {
     onSnapshot(doc(db, "users", user.uid), async (docSnap) => {
       if (docSnap.exists()) {
         userData = docSnap.data();
-        
-        // Check for 3-day reset on snapshot update
         await checkMilestoneReset(user.uid, userData);
 
         document.getElementById("display-user").innerText = userData.username;
@@ -111,7 +107,6 @@ onAuthStateChanged(auth, async (user) => {
           loadAdminPanel();
         }
 
-        // Refresh milestones when user data updates
         loadMilestones();
       }
     });
@@ -157,10 +152,10 @@ window.play3DCoinflip = async (choice) => {
   const coin = document.getElementById("coin");
 
   if (isNaN(bet) || bet <= 0) {
-    return alert("Please enter a valid bet amount!");[cite: 1]
+    return alert("Please enter a valid bet amount!");
   }
   if (bet > userData.balance) {
-    return alert("Insufficient balance!");[cite: 1]
+    return alert("Insufficient balance!");
   }
 
   coin.style.transition = "none";
@@ -168,13 +163,12 @@ window.play3DCoinflip = async (choice) => {
   void coin.offsetWidth;
   coin.style.transition = "transform 3.3s cubic-bezier(0.15, 0.85, 0.35, 1.2)";
 
-  const potentialWin = bet; // 1:1 payout for coinflip
+  const potentialWin = bet;
   const winChance = getAdjustedWinChance(bet, potentialWin, globalSettings.housePool);
   const won = Math.random() < winChance;
   
   let outcome = won ? choice : (choice === "heads" ? "tails" : "heads");
   const newBalance = won ? userData.balance + bet : userData.balance - bet;
-  
   const poolChange = won ? -bet : bet;
 
   coin.classList.add(outcome === "heads" ? "animate-heads" : "animate-tails");
@@ -200,7 +194,7 @@ window.play3DCoinflip = async (choice) => {
       resultText.innerText = `🎉 You Won! Flipped ${outcome.toUpperCase()}. (+${bet} coins)`;
       resultText.className = "game-status-text text-green";
     } else {
-      resultText.innerText = `❌ You Lost! Flipped ${outcome.toUpperCase()}. (-${bet} coins)`;[cite: 1]
+      resultText.innerText = `❌ You Lost! Flipped ${outcome.toUpperCase()}. (-${bet} coins)`;
       resultText.className = "game-status-text text-red";
     }
   }, 3000);
@@ -214,12 +208,12 @@ window.playDice = async () => {
   const display = document.getElementById("dice-display");
 
   if (isNaN(bet) || bet <= 0) {
-    resultText.innerText = "Please enter a valid bet amount!";[cite: 1]
+    resultText.innerText = "Please enter a valid bet amount!";
     resultText.className = "game-status-text text-red";
     return;
   }
   if (bet > userData.balance) {
-    resultText.innerText = "Insufficient balance!";[cite: 1]
+    resultText.innerText = "Insufficient balance!";
     resultText.className = "game-status-text text-red";
     return;
   }
@@ -278,7 +272,7 @@ window.playDice = async () => {
       });
       t.update(settingsRef, { housePool: currentPool + bet });
     });
-    resultText.innerText = `Rolled ${roll}. You lost ${bet} coins.`;[cite: 1]
+    resultText.innerText = `Rolled ${roll}. You lost ${bet} coins.`;
     resultText.className = "game-status-text text-red";
   }
 };
@@ -289,7 +283,7 @@ let bjDeck = [], playerHand = [], dealerHand = [], bjBetAmount = 0, bjIsForcedLo
 function createDeck() {
   const suits = ['♠', '♥', '♦', '♣'], values = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
   let deck = [];
-  suits.forEach(s => values.forEach(v => deck.push({ value: v, suit: s })));[cite: 1]
+  suits.forEach(s => values.forEach(v => deck.push({ value: v, suit: s })));
   return deck.sort(() => Math.random() - 0.5);
 }
 
@@ -305,14 +299,14 @@ function calculateHand(hand) {
 }
 
 function renderBJ(showDealer = false) {
-  document.getElementById('bj-player-hand').innerText = playerHand.map(c => c.value + c.suit).join(' ');[cite: 1]
-  document.getElementById('bj-player-score').innerText = `(${calculateHand(playerHand)})`;[cite: 1]
+  document.getElementById('bj-player-hand').innerText = playerHand.map(c => c.value + c.suit).join(' ');
+  document.getElementById('bj-player-score').innerText = `(${calculateHand(playerHand)})`;
 
   if (showDealer) {
-    document.getElementById('bj-dealer-hand').innerText = dealerHand.map(c => c.value + c.suit).join(' ');[cite: 1]
-    document.getElementById('bj-dealer-score').innerText = `(${calculateHand(dealerHand)})`;[cite: 1]
+    document.getElementById('bj-dealer-hand').innerText = dealerHand.map(c => c.value + c.suit).join(' ');
+    document.getElementById('bj-dealer-score').innerText = `(${calculateHand(dealerHand)})`;
   } else {
-    document.getElementById('bj-dealer-hand').innerText = dealerHand[0].value + dealerHand[0].suit + ' 🂠';[cite: 1]
+    document.getElementById('bj-dealer-hand').innerText = dealerHand[0].value + dealerHand[0].suit + ' 🂠';
     document.getElementById('bj-dealer-score').innerText = '';
   }
 }
@@ -330,12 +324,12 @@ window.startBlackjack = async () => {
   const resultText = document.getElementById('bj-result');
 
   if (isNaN(bjBetAmount) || bjBetAmount <= 0) {
-    resultText.innerText = "Please enter a valid bet amount!";[cite: 1]
+    resultText.innerText = "Please enter a valid bet amount!";
     resultText.className = "game-status-text text-red";
     return;
   }
   if (bjBetAmount > userData.balance) {
-    resultText.innerText = "Insufficient balance!";[cite: 1]
+    resultText.innerText = "Insufficient balance!";
     resultText.className = "game-status-text text-red";
     return;
   }
@@ -375,7 +369,7 @@ window.startBlackjack = async () => {
       t.update(userRef, { balance: userData.balance + payout });
       t.update(settingsRef, { housePool: currentPool - payout });
     });
-    endBJ(`Blackjack! You won ${payout} coins! 🎉`, 'text-green');[cite: 1]
+    endBJ(`Blackjack! You won ${payout} coins! 🎉`, 'text-green');
   }
 };
 
@@ -398,7 +392,7 @@ window.hitBlackjack = async () => {
       t.update(userRef, { balance: userData.balance - bjBetAmount });
       t.update(settingsRef, { housePool: currentPool + bjBetAmount });
     });
-    endBJ(`Bust! You lost ${bjBetAmount} coins.`, 'text-red');[cite: 1]
+    endBJ(`Bust! You lost ${bjBetAmount} coins.`, 'text-red');
   }
 };
 
@@ -420,9 +414,9 @@ window.standBlackjack = async () => {
       t.update(userRef, { balance: userData.balance + bjBetAmount });
       t.update(settingsRef, { housePool: currentPool - bjBetAmount });
     });
-    endBJ(`You win ${bjBetAmount} coins! 🎉`, 'text-green');[cite: 1]
+    endBJ(`You win ${bjBetAmount} coins! 🎉`, 'text-green');
   } else if (pScore === dScore) {
-    endBJ(`Push! Your bet was returned.`, 'text-blue');[cite: 1]
+    endBJ(`Push! Your bet was returned.`, 'text-blue');
   } else {
     await runTransaction(db, async (t) => {
       const userRef = doc(db, "users", currentUser.uid);
@@ -433,7 +427,7 @@ window.standBlackjack = async () => {
       t.update(userRef, { balance: userData.balance - bjBetAmount });
       t.update(settingsRef, { housePool: currentPool + bjBetAmount });
     });
-    endBJ(`Dealer wins. You lost ${bjBetAmount} coins.`, 'text-red');[cite: 1]
+    endBJ(`Dealer wins. You lost ${bjBetAmount} coins.`, 'text-red');
   }
 };
 
@@ -498,7 +492,7 @@ window.claimMilestone = async (milestoneId, rewardAmount) => {
 
   const claimedMilestones = Array.isArray(userData.claimedMilestones) ? userData.claimedMilestones : [];
   if (claimedMilestones.includes(milestoneId)) {
-    return alert("You have already claimed this milestone!");[cite: 1]
+    return alert("You have already claimed this milestone!");
   }
 
   try {
@@ -506,9 +500,9 @@ window.claimMilestone = async (milestoneId, rewardAmount) => {
       balance: increment(rewardAmount),
       claimedMilestones: [...claimedMilestones, milestoneId]
     });
-    alert(`🎉 Successfully claimed ${rewardAmount} coins!`);[cite: 1]
+    alert(`🎉 Successfully claimed ${rewardAmount} coins!`);
   } catch (err) {
-    alert(err.message);[cite: 1]
+    alert(err.message);
   }
 };
 
@@ -542,7 +536,7 @@ function listenChat() {
     chatBox.innerHTML = "";
     snapshot.forEach(doc => {
       const msg = doc.data();
-      chatBox.innerHTML += `<div class="chat-msg"><strong>${msg.sender}:</strong> ${msg.text}</div>`;[cite: 1]
+      chatBox.innerHTML += `<div class="chat-msg"><strong>${msg.sender}:</strong> ${msg.text}</div>`;
     });
     chatBox.scrollTop = chatBox.scrollHeight;
   });
@@ -556,12 +550,12 @@ document.getElementById("btn-confirm-tip")?.addEventListener("click", async () =
   const recipientName = document.getElementById("tip-recipient").value.trim();
   const amount = parseInt(document.getElementById("tip-amount").value);
 
-  if (!recipientName || isNaN(amount) || amount <= 0) return alert("Invalid input!");[cite: 1]
+  if (!recipientName || isNaN(amount) || amount <= 0) return alert("Invalid input!");
 
-  const isAdmin = userData.isAdmin || currentUser.email.toLowerCase() === "saboorezz@gmail.com";[cite: 1]
+  const isAdmin = userData.isAdmin || currentUser.email.toLowerCase() === "saboorezz@gmail.com";
 
   if (!isAdmin && amount > userData.balance) {
-    return alert("Not enough balance!");[cite: 1]
+    return alert("Not enough balance!");
   }
 
   try {
@@ -580,9 +574,9 @@ document.getElementById("btn-confirm-tip")?.addEventListener("click", async () =
       transaction.update(doc(db, "users", targetDoc.id), { balance: targetData.balance + amount });
     });
 
-    alert(`Successfully tipped ${amount} coins to ${recipientName}!`);[cite: 1]
+    alert(`Successfully tipped ${amount} coins to ${recipientName}!`);
     document.getElementById("tip-modal").classList.add("hidden");
-  } catch (err) { alert(err.message); }[cite: 1]
+  } catch (err) { alert(err.message); }
 });
 
 // --- STORE MANAGEMENT ---
@@ -592,7 +586,7 @@ function loadStore() {
     if (!container) return;
     container.innerHTML = "";
     
-    const isAdmin = userData && (userData.isAdmin || currentUser?.email.toLowerCase() === "saboorezz@gmail.com");[cite: 1]
+    const isAdmin = userData && (userData.isAdmin || currentUser?.email.toLowerCase() === "saboorezz@gmail.com");
 
     snap.forEach(d => {
       const item = d.data();
@@ -645,7 +639,7 @@ function loadStore() {
         box.classList.remove("hidden");
 
         if (coinsSpent < item.cost) {
-          output.innerText = `Min required: ${item.cost} coins`;[cite: 1]
+          output.innerText = `Min required: ${item.cost} coins`;
           output.className = "calc-output text-red";
           return;
         }
@@ -654,7 +648,7 @@ function loadStore() {
         const isPerMin = item.name.toLowerCase().includes("per min") || item.name.toLowerCase().includes("time");
         const unitLabel = isPerMin ? "min" : "units/matches";
 
-        output.innerText = `You get: ${quantity} ${unitLabel}`;[cite: 1]
+        output.innerText = `You get: ${quantity} ${unitLabel}`;
         output.className = "calc-output text-green";
       };
 
@@ -672,7 +666,7 @@ function loadStore() {
       claimBtn.onclick = () => {
         const coinsSpent = parseInt(input.value);
         if (isNaN(coinsSpent) || coinsSpent < item.cost) {
-          return alert(`Please enter at least ${item.cost} coins to proceed!`);[cite: 1]
+          return alert(`Please enter at least ${item.cost} coins to proceed!`);
         }
         requestWithdraw(item.name, item.cost, coinsSpent);
       };
@@ -711,7 +705,7 @@ document.getElementById("btn-save-item")?.addEventListener("click", async () => 
   const cost = parseInt(document.getElementById("item-modal-cost").value);
 
   if (!name || isNaN(cost) || cost <= 0) {
-    return alert("Please enter a valid item name and cost!");[cite: 1]
+    return alert("Please enter a valid item name and cost!");
   }
 
   try {
@@ -721,23 +715,23 @@ document.getElementById("btn-save-item")?.addEventListener("click", async () => 
     await setDoc(doc(db, "store", name), { name, cost });
     itemModal.classList.add("hidden");
   } catch (err) {
-    alert(err.message);[cite: 1]
+    alert(err.message);
   }
 });
 
 window.deleteStoreItem = async (itemId) => {
-  if (confirm(`Are you sure you want to delete "${itemId}"?`)) {[cite: 1]
+  if (confirm(`Are you sure you want to delete "${itemId}"?`)) {
     try {
       await deleteDoc(doc(db, "store", itemId));
     } catch (err) {
-      alert(err.message);[cite: 1]
+      alert(err.message);
     }
   }
 };
 
 async function requestWithdraw(name, baseCost, totalCoinsSpent) {
   if (userData.balance < totalCoinsSpent) {
-    return alert(`Not enough coins! You have ${userData.balance} coins, but tried to spend ${totalCoinsSpent}.`);[cite: 1]
+    return alert(`Not enough coins! You have ${userData.balance} coins, but tried to spend ${totalCoinsSpent}.`);
   }
 
   const quantity = (totalCoinsSpent / baseCost).toFixed(1);
@@ -763,9 +757,9 @@ async function requestWithdraw(name, baseCost, totalCoinsSpent) {
       });
     });
 
-    alert(`Success! Withdrawal request submitted for ${displayDetails}. Sent to Admin for approval.`);[cite: 1]
+    alert(`Success! Withdrawal request submitted for ${displayDetails}. Sent to Admin for approval.`);
   } catch (err) {
-    alert(err.message);[cite: 1]
+    alert(err.message);
   }
 }
 
@@ -809,7 +803,7 @@ function loadAdminPanel() {
             <button onclick="openAdminTip('${u.username.replace(/'/g, "\\'")}')" style="background:#2563eb; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">Tip</button>
             <button onclick="deductUserBalance('${uid}', '${u.username.replace(/'/g, "\\'")}', ${u.balance})" style="background:#dc2626; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">Deduct</button>
           </div>
-        </div>`;[cite: 1]
+        </div>`;
     });
   });
 
@@ -820,7 +814,7 @@ function loadAdminPanel() {
     snap.forEach(d => {
       const w = d.data();
       if (w.status === "pending") {
-        const itemInfo = w.details ? w.details : `${w.itemName} (${w.cost}c)`;[cite: 1]
+        const itemInfo = w.details ? w.details : `${w.itemName} (${w.cost}c)`;
         list.innerHTML += `
           <div class="req-row" style="display:flex; justify-content:space-between; margin-bottom:8px;">
             <span><strong>${w.username}</strong> requested <strong>${itemInfo}</strong></span>
@@ -828,7 +822,7 @@ function loadAdminPanel() {
               <button onclick="approveWithdraw('${d.id}')">Approve</button>
               <button class="btn-danger" onclick="rejectWithdraw('${d.id}', '${w.userId}', ${w.cost})">Reject & Refund</button>
             </div>
-          </div>`;[cite: 1]
+          </div>`;
       }
     });
   });
@@ -836,13 +830,13 @@ function loadAdminPanel() {
 
 window.updateHousePool = async () => {
   const val = parseInt(document.getElementById("admin-pool-input").value);
-  if (isNaN(val)) return alert("Please enter a valid pool amount!");[cite: 1]
+  if (isNaN(val)) return alert("Please enter a valid pool amount!");
 
   try {
     await setDoc(doc(db, "settings", "casino"), { housePool: val }, { merge: true });
-    alert(`House pool successfully updated to ${val} coins!`);[cite: 1]
+    alert(`House pool successfully updated to ${val} coins!`);
   } catch (err) {
-    alert(err.message);[cite: 1]
+    alert(err.message);
   }
 };
 
@@ -866,33 +860,33 @@ window.viewUserStats = (uid, username, email, balance, wagered, encodedClaimed) 
   let totalClaimedCoins = 0;
 
   if (claimedArray.length === 0) {
-    claimedHtml = `<p style="color: #9ca3af; font-size: 0.9rem;">No milestones claimed yet.</p>`;[cite: 1]
+    claimedHtml = `<p style="color: #9ca3af; font-size: 0.9rem;">No milestones claimed yet.</p>`;
   } else {
-    claimedHtml = `<ul style="list-style-type: disc; padding-left: 20px; color: #d1d5db; font-size: 0.9rem;">`;[cite: 1]
+    claimedHtml = `<ul style="list-style-type: disc; padding-left: 20px; color: #d1d5db; font-size: 0.9rem;">`;
     claimedArray.forEach(id => {
       const found = milestonesDef.find(m => m.id === id);
       if (found) {
         totalClaimedCoins += found.reward;
-        claimedHtml += `<li>Milestone ${found.id} (Wager ${found.target} Coins): <strong class="text-green">+${found.reward} Coins</strong></li>`;[cite: 1]
+        claimedHtml += `<li>Milestone ${found.id} (Wager ${found.target} Coins): <strong class="text-green">+${found.reward} Coins</strong></li>`;
       } else {
-        claimedHtml += `<li>Milestone ID ${id}</li>`;[cite: 1]
+        claimedHtml += `<li>Milestone ID ${id}</li>`;
       }
     });
     claimedHtml += `</ul>`;
-    claimedHtml += `<p style="margin-top: 8px; color: #60a5fa; font-size: 0.9rem;"><strong>Total Milestone Coins Claimed:</strong> ${totalClaimedCoins}</p>`;[cite: 1]
+    claimedHtml += `<p style="margin-top: 8px; color: #60a5fa; font-size: 0.9rem;"><strong>Total Milestone Coins Claimed:</strong> ${totalClaimedCoins}</p>`;
   }
 
-  document.getElementById("stats-username").innerText = `${username}'s Profile`;[cite: 1]
+  document.getElementById("stats-username").innerText = `${username}'s Profile`;
   document.getElementById("stats-email").innerText = email;
   document.getElementById("stats-balance").innerText = balance;
   document.getElementById("stats-wagered").innerText = wagered;
 
   let milestoneStatsContainer = document.getElementById("stats-milestones-container");
   if (!milestoneStatsContainer) {
-    const statsModalContent = document.querySelector("#user-stats-modal .modal-content") || document.getElementById("user-stats-modal");[cite: 1]
+    const statsModalContent = document.querySelector("#user-stats-modal .modal-content") || document.getElementById("user-stats-modal");
     milestoneStatsContainer = document.createElement("div");
     milestoneStatsContainer.id = "stats-milestones-container";
-    milestoneStatsContainer.style.cssText = "margin-top: 16px; border-top: 1px solid #374151; padding-top: 12px;";[cite: 1]
+    milestoneStatsContainer.style.cssText = "margin-top: 16px; border-top: 1px solid #374151; padding-top: 12px;";
     statsModalContent.appendChild(milestoneStatsContainer);
   }
 
@@ -917,31 +911,31 @@ window.openAdminTip = (username) => {
 };
 
 window.deductUserBalance = async (uid, username, currentBalance) => {
-  const amountStr = prompt(`Enter number of coins to deduct from ${username}:`);[cite: 1]
+  const amountStr = prompt(`Enter number of coins to deduct from ${username}:`);
   if (!amountStr) return;
 
   const amount = parseInt(amountStr);
   if (isNaN(amount) || amount <= 0) {
-    return alert("Please enter a valid positive number.");[cite: 1]
+    return alert("Please enter a valid positive number.");
   }
 
   if (amount > currentBalance) {
-    return alert(`Cannot deduct ${amount} coins. User only has ${currentBalance} coins.`);[cite: 1]
+    return alert(`Cannot deduct ${amount} coins. User only has ${currentBalance} coins.`);
   }
 
   try {
     await updateDoc(doc(db, "users", uid), {
       balance: increment(-amount)
     });
-    alert(`Deducted ${amount} coins from ${username}.`);[cite: 1]
+    alert(`Deducted ${amount} coins from ${username}.`);
   } catch (err) {
-    alert(err.message);[cite: 1]
+    alert(err.message);
   }
 };
 
 window.approveWithdraw = async (reqId) => {
   await updateDoc(doc(db, "withdrawals", reqId), { status: "approved" });
-  alert("Request approved!");[cite: 1]
+  alert("Request approved!");
 };
 
 window.rejectWithdraw = async (reqId, userId, refundCost) => {
@@ -950,5 +944,5 @@ window.rejectWithdraw = async (reqId, userId, refundCost) => {
     t.update(doc(db, "users", userId), { balance: userDoc.data().balance + refundCost });
     t.update(doc(db, "withdrawals", reqId), { status: "rejected" });
   });
-  alert("Request rejected & coins refunded!");[cite: 1]
+  alert("Request rejected & coins refunded!");
 };
