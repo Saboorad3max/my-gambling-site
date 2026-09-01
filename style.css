@@ -529,25 +529,27 @@ input:focus {
   display: none !important;
 }
 
-/* --- TOP-LEFT TIP TOAST NOTIFICATION --- */
+/* --- TOP-LEFT TIP TOAST NOTIFICATION (FIXED POSITIONING & SPECIFICITY) --- */
 .tip-toast {
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  background-color: #1e293b;
-  color: #38bdf8;
-  border: 1px solid #3b82f6;
-  padding: 12px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 14px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-  z-index: 9999;
-  transition: opacity 0.3s ease-in-out;
-  pointer-events: none;
+  position: fixed !important;
+  top: 20px !important;
+  left: 20px !important;
+  right: auto !important;
+  transform: none !important;
+  background-color: #1e293b !important;
+  color: #38bdf8 !important;
+  border: 1px solid #3b82f6 !important;
+  padding: 12px 20px !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
+  z-index: 9999 !important;
+  transition: opacity 0.3s ease-in-out !important;
+  pointer-events: none !important;
 }
 
 .tip-toast.hidden {
   display: none !important;
-  opacity: 0;
+  opacity: 0 !important;
 }
