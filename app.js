@@ -156,12 +156,8 @@ window.play3DCoinflip = async (choice) => {
   const resultText = document.getElementById("coinflip-result");
   const coin = document.getElementById("coin");
 
-  // Strict Max Bet Check
   if (isNaN(bet) || bet <= 0) {
     return alert("Please enter a valid bet amount!");[cite: 1]
-  }
-  if (bet > 25) {
-    return alert("Maximum bet limit for Coinflip is 25 coins.");[cite: 1]
   }
   if (bet > userData.balance) {
     return alert("Insufficient balance!");[cite: 1]
@@ -170,7 +166,7 @@ window.play3DCoinflip = async (choice) => {
   coin.style.transition = "none";
   coin.className = "coin";
   void coin.offsetWidth;
-  coin.style.transition = "transform 3s cubic-bezier(0.15, 0.85, 0.35, 1.2)";[cite: 1]
+  coin.style.transition = "transform 3.3s cubic-bezier(0.15, 0.85, 0.35, 1.2)";
 
   const potentialWin = bet; // 1:1 payout for coinflip
   const winChance = getAdjustedWinChance(bet, potentialWin, globalSettings.housePool);
@@ -179,7 +175,6 @@ window.play3DCoinflip = async (choice) => {
   let outcome = won ? choice : (choice === "heads" ? "tails" : "heads");
   const newBalance = won ? userData.balance + bet : userData.balance - bet;
   
-  // Adjust house pool transaction safely
   const poolChange = won ? -bet : bet;
 
   coin.classList.add(outcome === "heads" ? "animate-heads" : "animate-tails");
@@ -218,14 +213,8 @@ window.playDice = async () => {
   const resultText = document.getElementById("dice-result");
   const display = document.getElementById("dice-display");
 
-  // Strict Max Bet Check
   if (isNaN(bet) || bet <= 0) {
     resultText.innerText = "Please enter a valid bet amount!";[cite: 1]
-    resultText.className = "game-status-text text-red";
-    return;
-  }
-  if (bet > 50) {
-    resultText.innerText = "Maximum bet limit for Dice is 50 coins.";[cite: 1]
     resultText.className = "game-status-text text-red";
     return;
   }
@@ -340,14 +329,8 @@ window.startBlackjack = async () => {
   bjBetAmount = parseInt(document.getElementById('bj-bet').value);
   const resultText = document.getElementById('bj-result');
 
-  // Strict Max Bet Check
   if (isNaN(bjBetAmount) || bjBetAmount <= 0) {
     resultText.innerText = "Please enter a valid bet amount!";[cite: 1]
-    resultText.className = "game-status-text text-red";
-    return;
-  }
-  if (bjBetAmount > 30) {
-    resultText.innerText = "Maximum bet limit for Blackjack is 30 coins.";[cite: 1]
     resultText.className = "game-status-text text-red";
     return;
   }
@@ -740,7 +723,7 @@ document.getElementById("btn-save-item")?.addEventListener("click", async () => 
   } catch (err) {
     alert(err.message);[cite: 1]
   }
-};
+});
 
 window.deleteStoreItem = async (itemId) => {
   if (confirm(`Are you sure you want to delete "${itemId}"?`)) {[cite: 1]
@@ -788,7 +771,6 @@ async function requestWithdraw(name, baseCost, totalCoinsSpent) {
 
 // --- ADMIN PANEL FUNCTIONS ---
 function loadAdminPanel() {
-  // Render house pool box dynamically inside the admin panel
   let poolContainer = document.getElementById("admin-house-pool-container");
   if (!poolContainer) {
     const adminPanelEl = document.querySelector("#admin-panel") || document.querySelector(".admin-only");
