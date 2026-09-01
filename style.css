@@ -111,12 +111,9 @@ input:focus {
 /* --- NAVIGATION TABS --- */
 .tabs-nav, .tabs, .nav-tabs {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 8px;
   margin-bottom: 16px;
-  -webkit-overflow-scrolling: touch;
 }
 
 .tabs-nav::-webkit-scrollbar, .tabs::-webkit-scrollbar {
@@ -127,11 +124,12 @@ input:focus {
   background: #111827;
   color: #9ca3af;
   border: 1px solid #1f2937;
-  padding: 8px 14px;
+  padding: 10px 14px;
   border-radius: 10px;
-  white-space: nowrap;
   font-size: 0.85rem;
-  flex-shrink: 0;
+  flex: 1 1 calc(50% - 4px);
+  text-align: center;
+  white-space: nowrap;
 }
 
 .tab-btn.active {
