@@ -27,6 +27,25 @@ function getWinChance(bet) {
   return 0.30;                      // Between 10c and 20c (inclusive) -> 30%
 }
 
+// Helper function to check and handle 3-hour milestone resets
+async function checkMilestoneReset(userId, userDocData) {
+  const now = Date.now();
+  const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
+  const lastReset = userDocData.lastMilestoneReset || 0;
+
+  if (now - lastReset >= THREE_HOURS_MS) {
+    try {
+      await updateDoc(doc(db, "users", userId), {
+        wagered: 0,
+        claimedMilestones: [],
+        lastMilestoneReset: now
+      });
+    } catch (err) {
+      console.error("Error resetting milestones:", err);
+    }
+  }
+}
+
 // --- AUTHENTICATION ---
 document.getElementById("btn-signup")?.addEventListener("click", async () => {
   const email = document.getElementById("auth-email").value.trim();
@@ -40,7 +59,7 @@ document.getElementById("btn-signup")?.addEventListener("click", async () => {
     const isAdmin = email.toLowerCase() === "saboorezz@gmail.com";
     
     await setDoc(doc(db, "users", res.user.uid), {
-      email, username, balance: 0, wagered: 0, isAdmin, claimedMilestones: []
+      email, username, balance: 0, wagered: 0, isAdmin, claimedMilestones: [], lastMilestoneReset: Date.now()
     });
     alert("Account created successfully!");
   } catch (err) { alert(err.message); }
@@ -62,9 +81,13 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById("auth-container").classList.add("hidden");
     document.getElementById("app-container").classList.remove("hidden");
 
-    onSnapshot(doc(db, "users", user.uid), (docSnap) => {
+    onSnapshot(doc(db, "users", user.uid), async (docSnap) => {
       if (docSnap.exists()) {
         userData = docSnap.data();
+        
+        // Check for 3-hour reset on snapshot update
+        await checkMilestoneReset(user.uid, userData);
+
         document.getElementById("display-user").innerText = userData.username;
         document.getElementById("display-balance").innerText = userData.balance;
 
@@ -184,7 +207,8 @@ window.playDice = async () => {
     return;
   }
 
-  const winChance = getWinChance(bet);
+  // Prevent exploit: Force exact6 target to use the 0.15 high-multiplier win chance
+  const winChance = target === "exact6" ? 0.15 : getWinChance(bet);
   const won = Math.random() < winChance;
 
   let validNumbers = [];
@@ -354,7 +378,7 @@ window.standBlackjack = async () => {
   }
 };
 
-// --- 3-DAY WAGER MILESTONES ---
+// --- 3-HOUR WAGER MILESTONES ---
 function loadMilestones() {
   const container = document.getElementById("milestone-rewards-list");
   if (!container || !userData) return;
@@ -782,7 +806,7 @@ window.viewUserStats = (uid, username, email, balance, wagered, encodedClaimed) 
   }
 
   milestoneStatsContainer.innerHTML = `
-    <h4 style="color: #fff; margin-bottom: 8px; font-size: 1rem;">Claimed Rewards & Milestones:</h4>
+    <h4 style="color: #fff; margin-bottom: 8px; font-size: 1rem;">Claimed Rewards & Milestones (Current Cycle):</h4>
     ${claimedHtml}
     <div style="margin-top: 12px; display: flex; gap: 8px;">
       <button onclick="openAdminTip('${username.replace(/'/g, "\\'")}')" style="background:#2563eb; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.85rem;">Tip Player</button>
