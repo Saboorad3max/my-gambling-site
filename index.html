@@ -4,33 +4,289 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Virtual Coins Gambling & Shop</title>
-  <link rel="stylesheet" href="style.css">
+  <style>
+    /* --- BASE RESET --- */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: #0b0f17;
+      color: #e5e7eb;
+      padding: 12px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #app-container, #auth-container {
+      width: 100%;
+      max-width: 480px;
+    }
+
+    /* --- AUTH SCREEN --- */
+    .auth-card {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 40px;
+    }
+
+    /* --- TOP HEADER & NAVBAR --- */
+    .navbar {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .logo-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .user-info-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 10px;
+      border-top: 1px solid #1f2937;
+    }
+
+    .user-details {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .username-text {
+      font-weight: 600;
+      color: #9ca3af;
+      font-size: 0.9rem;
+    }
+
+    .badge {
+      background: linear-gradient(135deg, #1e40af, #3b82f6);
+      color: #ffffff;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+
+    /* --- VERTICAL TABS NAVIGATION --- */
+    .tabs-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .tab-btn {
+      background: #111827;
+      color: #9ca3af;
+      border: 1px solid #1f2937;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      text-align: center;
+      width: 100%;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn.active {
+      background: #2563eb;
+      color: #ffffff;
+      border-color: #2563eb;
+      box-shadow: 0 0 12px rgba(37, 99, 235, 0.4);
+    }
+
+    /* --- BUTTONS & INPUTS --- */
+    button {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background: #2563eb;
+      color: #ffffff;
+    }
+
+    #btn-logout, .btn-danger {
+      background: #ef4444;
+      color: #ffffff;
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+    }
+
+    .coin-input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid #374151;
+      background: #1f2937;
+      color: #ffffff;
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    /* --- CONTENT SECTIONS --- */
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .panel-card {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .panel-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .games-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .game-card {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 12px;
+      padding: 20px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    /* --- ADMIN USER LIST STYLE --- */
+    .user-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 10px 0;
+      border-bottom: 1px solid #1f2937;
+    }
+
+    .user-item:last-child {
+      border-bottom: none;
+    }
+
+    .user-item-name {
+      color: #2563eb;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .user-item-sub {
+      color: #9ca3af;
+      font-size: 0.85rem;
+    }
+
+    .user-item-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    /* --- POOL SET PANEL STYLE --- */
+    .pool-card {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .pool-input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
 </head>
 <body>
 
-  <div id="auth-container" class="card">
-    <h2>Welcome to Virtual Coins</h2>
-    <input type="email" id="auth-email" class="auth-input coin-input" placeholder="Email (Admin: saboorezz@gmail.com)" autocomplete="off">
-    <input type="text" id="auth-username" class="auth-input coin-input" placeholder="Username" autocomplete="off">
-    <input type="password" id="auth-password" class="auth-input coin-input" placeholder="Password" autocomplete="off">
-    <div class="auth-buttons">
-      <button id="btn-login">Login</button>
-      <button id="btn-signup" class="btn-secondary">Sign Up</button>
+  <!-- AUTH SCREEN -->
+  <div id="auth-container" class="auth-card">
+    <h2 class="panel-title">Welcome to Virtual Coins</h2>
+    <input type="email" id="auth-email" class="coin-input" placeholder="Email (Admin: saboorezz@gmail.com)" autocomplete="off">
+    <input type="text" id="auth-username" class="coin-input" placeholder="Username" autocomplete="off">
+    <input type="password" id="auth-password" class="coin-input" placeholder="Password" autocomplete="off">
+    <div style="display: flex; gap: 8px;">
+      <button id="btn-login" style="flex:1;">Login</button>
+      <button id="btn-signup" style="background:#374151; flex:1;">Sign Up</button>
     </div>
   </div>
 
+  <!-- MAIN APP CONTAINER -->
   <div id="app-container" class="hidden">
+    
+    <!-- TOP HEADER -->
     <header class="navbar">
-      <div class="logo-title">🎲 Virtual Coins</div>
-      <div class="user-info">
+      <div class="logo-row">
+        <div class="logo-title">🎲 Virtual Coins</div>
+      </div>
+      <div class="user-info-row">
         <div class="user-details">
-          <span id="display-user" class="username-text"></span>
+          <span id="display-user" class="username-text">Saboorezz</span>
           <span class="badge">Coins: <strong id="display-balance">0</strong></span>
         </div>
-        <button id="btn-logout" class="btn-danger">Logout</button>
+        <button id="btn-logout" class="btn-sm">Logout</button>
       </div>
     </header>
 
+    <!-- CLEAN UNIFORM TABS NAVIGATION -->
     <nav class="tabs-nav">
       <button class="tab-btn active" data-tab="tab-games">Games</button>
       <button class="tab-btn" data-tab="tab-milestones">Milestones</button>
@@ -39,202 +295,135 @@
       <button class="tab-btn admin-only hidden" data-tab="tab-admin">Admin Panel</button>
     </nav>
 
+    <!-- GAMES TAB -->
     <section id="tab-games" class="tab-content active">
-      
-      <div id="games-lobby">
-        <h3 class="section-title">Original Games</h3>
+      <div class="panel-card">
+        <h3 style="font-size: 0.9rem; color: #9ca3af; text-transform: uppercase;">Original Games</h3>
         <div class="games-grid">
-          
-          <div class="game-card" onclick="openGame('coinflip')">
-            <div class="card-badge">ORIGINAL</div>
-            <div class="card-icon">🪙</div>
-            <div class="card-title">COINFLIP</div>
+          <div class="game-card" onclick="alert('Launching Coinflip')">
+            <span style="font-size: 2rem;">🪙</span>
+            <strong style="font-size: 0.85rem;">COINFLIP</strong>
           </div>
-
-          <div class="game-card" onclick="openGame('dice')">
-            <div class="card-badge">ORIGINAL</div>
-            <div class="card-icon">🎲</div>
-            <div class="card-title">DICE</div>
+          <div class="game-card" onclick="alert('Launching Dice')">
+            <span style="font-size: 2rem;">🎲</span>
+            <strong style="font-size: 0.85rem;">DICE</strong>
           </div>
-
-          <div class="game-card" onclick="openGame('blackjack')">
-            <div class="card-badge">ORIGINAL</div>
-            <div class="card-icon">🃏</div>
-            <div class="card-title">BLACKJACK</div>
-          </div>
-
         </div>
       </div>
-
-      <div id="game-stage-coinflip" class="game-stage hidden">
-        <button class="btn-back" onclick="closeGame()">← Back to Games</button>
-        <div class="game-container">
-          <h3 class="panel-title">Coinflip</h3>
-          
-          <div class="coin-wrapper">
-            <div id="coin" class="coin">
-              <div class="coin-face coin-heads">HEADS</div>
-              <div class="coin-face coin-tails">TAILS</div>
-            </div>
-          </div>
-
-          <div class="bet-controls">
-            <input type="number" id="coinflip-bet" class="coin-input" placeholder="Bet Amount (Max: 25)" min="1" max="25">
-            <div class="game-buttons">
-              <button class="btn-game btn-heads" onclick="play3DCoinflip('heads')">Flip Heads</button>
-              <button class="btn-game btn-tails" onclick="play3DCoinflip('tails')">Flip Tails</button>
-            </div>
-          </div>
-          <p id="coinflip-result" class="game-status-text"></p>
-        </div>
-      </div>
-
-      <div id="game-stage-dice" class="game-stage hidden">
-        <button class="btn-back" onclick="closeGame()">← Back to Games</button>
-        <div class="game-container">
-          <h3 class="panel-title">Dice Roll</h3>
-          <div id="dice-display" style="font-size: 3.5rem; margin: 12px 0;">🎲</div>
-          
-          <div class="bet-controls">
-            <input type="number" id="dice-bet" class="coin-input" placeholder="Bet Amount (Max: 50)" min="1" max="50">
-            <select id="dice-target" class="coin-input" style="margin-top: 8px;">
-              <option value="under3">Roll 1-2 (2x Payout)</option>
-              <option value="over3">Roll 4-6 (2x Payout)</option>
-              <option value="exact6">Exact 6 (5x Payout)</option>
-            </select>
-            <button class="btn-game" style="background: #2563eb; color: #fff; margin-top: 10px; width: 100%;" onclick="playDice()">Roll Dice</button>
-          </div>
-          <p id="dice-result" class="game-status-text"></p>
-        </div>
-      </div>
-
-      <div id="game-stage-blackjack" class="game-stage hidden">
-        <button class="btn-back" onclick="closeGame()">← Back to Games</button>
-        <div class="game-container">
-          <h3 class="panel-title">Blackjack</h3>
-          
-          <div id="bj-table" style="width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; margin: 12px 0; text-align: left;">
-            <div style="background: #1f2937; padding: 12px; border-radius: 10px;">
-              <span style="color: #9ca3af; font-size: 0.85rem;">DEALER HAND</span>
-              <div style="font-size: 1.1rem; font-weight: bold; margin-top: 4px;">
-                <span id="bj-dealer-hand">-</span>
-                <span id="bj-dealer-score" class="text-blue" style="margin-left: 8px;"></span>
-              </div>
-            </div>
-            <div style="background: #1f2937; padding: 12px; border-radius: 10px;">
-              <span style="color: #9ca3af; font-size: 0.85rem;">YOUR HAND</span>
-              <div style="font-size: 1.1rem; font-weight: bold; margin-top: 4px;">
-                <span id="bj-player-hand">-</span>
-                <span id="bj-player-score" class="text-green" style="margin-left: 8px;"></span>
-              </div>
-            </div>
-          </div>
-
-          <div class="bet-controls">
-            <input type="number" id="bj-bet" class="coin-input" placeholder="Bet Amount (Max: 30)" min="1" max="30">
-            <div id="bj-setup-btns" style="margin-top: 10px;">
-              <button class="btn-game" style="background: #2563eb; color: #fff; width: 100%;" onclick="startBlackjack()">Deal Hand</button>
-            </div>
-            <div id="bj-action-btns" class="game-buttons hidden" style="margin-top: 10px;">
-              <button class="btn-game" style="background: #059669; color: #fff;" onclick="hitBlackjack()">Hit</button>
-              <button class="btn-game" style="background: #dc2626; color: #fff;" onclick="standBlackjack()">Stand</button>
-            </div>
-          </div>
-          <p id="bj-result" class="game-status-text"></p>
-        </div>
-      </div>
-
     </section>
 
+    <!-- MILESTONES TAB -->
     <section id="tab-milestones" class="tab-content">
-      <h2 class="panel-title" style="margin-bottom: 6px;">3-Day Wager Milestones</h2>
-      <p style="color: #9ca3af; font-size: 0.85rem; margin-bottom: 20px;">Wager coins to unlock milestone rewards. Progress resets every 3 days!</p>
-      <div id="milestone-rewards-list"></div>
-    </section>
-
-    <section id="tab-store" class="tab-content">
-      <div class="store-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h2 class="panel-title" style="margin: 0;">Withdraw Coins for Rewards</h2>
-        <button id="btn-open-add-item" class="btn-game admin-only hidden" style="background: #2563eb; color: #fff; width: auto; padding: 8px 16px;">
-          + Add Item
-        </button>
+      <div class="panel-card">
+        <h3 class="panel-title">3-Day Wager Milestones</h3>
+        <p style="color: #9ca3af; font-size: 0.85rem;">Wager coins to unlock rewards.</p>
       </div>
-      <div id="store-list" class="grid-container"></div>
     </section>
 
+    <!-- STORE TAB -->
+    <section id="tab-store" class="tab-content">
+      <div class="panel-card">
+        <h3 class="panel-title">Store & Withdraw</h3>
+        <p style="color: #9ca3af; font-size: 0.85rem;">Withdraw coins for prizes.</p>
+      </div>
+    </section>
+
+    <!-- CHAT TAB -->
     <section id="tab-chat" class="tab-content">
-      <div class="chat-container">
-        <h2 class="panel-title">Global Chat</h2>
-        <p class="chat-help">Tip someone by typing <strong>/tip</strong> in chat!</p>
-        <div id="chat-messages" class="chat-box"></div>
-        <div class="chat-input-box">
-          <input type="text" id="chat-input" class="coin-input" placeholder="Type a message or /tip...">
-          <button id="btn-send-chat">Send</button>
+      <div class="panel-card">
+        <h3 class="panel-title">Global Chat</h3>
+        <div style="height:180px; background:#0b0f17; border:1px solid #1f2937; border-radius:10px; padding:10px; font-size:0.85rem;">
+          Welcome to global chat!
+        </div>
+        <div style="display:flex; gap:8px;">
+          <input type="text" class="coin-input" placeholder="Type a message...">
+          <button>Send</button>
         </div>
       </div>
     </section>
 
+    <!-- ADMIN TAB WITH CASINO VAULT MOVED INSIDE -->
     <section id="tab-admin" class="tab-content">
-      <h2 class="panel-title">Admin Control Panel</h2>
-
       <div class="panel-card">
-        <h3 class="panel-subtitle">User Balances & Add/Remove Coins</h3>
-        <div id="admin-user-list"></div>
-      </div>
+        <h3 class="panel-title">Admin Control Panel</h3>
+        <p style="color: #9ca3af; font-size: 0.85rem;">User Balances & Add/Remove Coins</p>
 
-      <div class="panel-card">
-        <h3 class="panel-subtitle">Pending Withdrawal Requests</h3>
-        <div id="admin-withdraw-list"></div>
+        <!-- USER APPROVALS / BALANCE LIST -->
+        <div class="user-list">
+          <div class="user-item">
+            <div>
+              <a href="#" class="user-item-name">Saboorezz</a>
+              <span class="user-item-sub">(saboorezz@gmail.com) - <strong>0 Coins</strong></span>
+            </div>
+            <div class="user-item-actions">
+              <button class="btn-sm">Tip</button>
+              <button class="btn-sm btn-danger">Deduct</button>
+            </div>
+          </div>
+
+          <div class="user-item">
+            <div>
+              <a href="#" class="user-item-name">Abdullah</a>
+              <span class="user-item-sub">(abdullah@gmail.com) - <strong>100 Coins</strong></span>
+            </div>
+            <div class="user-item-actions">
+              <button class="btn-sm">Tip</button>
+              <button class="btn-sm btn-danger">Deduct</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- MOVED HOUSE POOL / CASINO VAULT PANEL HERE BELOW APPROVALS -->
+        <div class="pool-card">
+          <h4 style="font-size: 0.95rem; color: #ffffff; text-align: center;">Casino Vault / House Pool</h4>
+          <p style="font-size: 0.85rem; color: #9ca3af; text-align: center;">
+            Current Pool Available: <strong style="color: #10b981;">1255 Coins</strong>
+          </p>
+          <div class="pool-input-row">
+            <input type="number" class="coin-input" placeholder="Set new pool amount">
+            <button style="white-space: nowrap;">Update Pool</button>
+          </div>
+        </div>
+
       </div>
     </section>
+
   </div>
 
-  <div id="tip-modal" class="modal hidden">
-    <div class="modal-content panel-card">
-      <h3 class="panel-title">Tip Coins</h3>
-      <input type="text" id="tip-recipient" class="coin-input" placeholder="Recipient Username" style="margin-bottom: 10px;">
-      <input type="number" id="tip-amount" class="coin-input" placeholder="Amount to Tip" style="margin-bottom: 10px;">
-      <div class="modal-actions">
-        <button id="btn-confirm-tip">Send Tip</button>
-        <button id="btn-close-tip" class="btn-secondary">Cancel</button>
-      </div>
-    </div>
-  </div>
+  <script>
+    // Navigation Tab Controller
+    document.querySelectorAll('.tab-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-  <div id="user-stats-modal" class="modal hidden">
-    <div class="modal-content panel-card" style="max-width: 400px; text-align: left;">
-      <h3 id="stats-username" class="panel-title">User Profile</h3>
-      <div style="margin: 14px 0; background: #0b0f17; padding: 14px; border-radius: 10px; border: 1px solid #1f2937;">
-        <p style="color: #9ca3af; font-size: 0.85rem; margin-bottom: 8px;">Email: <span id="stats-email" style="color: #fff;"></span></p>
-        <p style="color: #9ca3af; font-size: 0.85rem; margin-bottom: 8px;">Current Balance: <span id="stats-balance" class="text-green" style="font-weight: bold;"></span> Coins</p>
-        <p style="color: #9ca3af; font-size: 0.85rem;">Total Wagered: <span id="stats-wagered" class="text-blue" style="font-weight: bold;"></span> Coins</p>
-      </div>
-      <button id="btn-close-stats" class="btn-secondary" style="width: 100%;">Close</button>
-    </div>
-  </div>
+        button.classList.add('active');
+        document.getElementById(button.getAttribute('data-tab')).classList.add('active');
+      });
+    });
 
-  <div id="item-modal" class="modal hidden">
-    <div class="modal-content panel-card" style="max-width: 400px; text-align: left;">
-      <h3 id="item-modal-title" class="panel-title">Add Store Item</h3>
-      <input type="hidden" id="item-modal-id">
-      
-      <div style="margin-bottom: 12px;">
-        <label style="display: block; font-size: 0.85rem; color: #9ca3af; margin-bottom: 4px;">Item Name / Unit</label>
-        <input type="text" id="item-modal-name" placeholder="e.g., iphone per min" class="coin-input">
-      </div>
+    // Mock Login / Logout logic
+    const authContainer = document.getElementById('auth-container');
+    const appContainer = document.getElementById('app-container');
 
-      <div style="margin-bottom: 16px;">
-        <label style="display: block; font-size: 0.85rem; color: #9ca3af; margin-bottom: 4px;">Coins per Unit (Rate)</label>
-        <input type="number" id="item-modal-cost" placeholder="e.g., 20" class="coin-input" min="1">
-      </div>
+    document.getElementById('btn-login').addEventListener('click', () => {
+      const email = document.getElementById('auth-email').value;
+      const username = document.getElementById('auth-username').value || "Saboorezz";
 
-      <div class="modal-actions" style="display: flex; gap: 10px;">
-        <button id="btn-save-item" class="btn-game" style="background: #059669; color: #fff; flex: 1;">Save</button>
-        <button id="btn-close-item-modal" class="btn-secondary" style="flex: 1;">Cancel</button>
-      </div>
-    </div>
-  </div>
+      authContainer.classList.add('hidden');
+      appContainer.classList.remove('hidden');
+      document.getElementById('display-user').textContent = username;
 
-  <script type="module" src="app.js"></script>
+      // Show Admin Tab if logging in with admin email
+      if (email === "saboorezz@gmail.com" || email === "") {
+        document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+      }
+    });
+
+    document.getElementById('btn-logout').addEventListener('click', () => {
+      appContainer.classList.add('hidden');
+      authContainer.classList.remove('hidden');
+    });
+  </script>
 </body>
 </html>
