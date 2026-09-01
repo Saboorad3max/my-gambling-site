@@ -177,6 +177,27 @@
     <section id="tab-admin" class="tab-content">
       <h2 class="panel-title">Admin Control Panel</h2>
 
+      <!-- House Reserve Pool Card -->
+      <div class="panel-card admin-only">
+        <h3 class="panel-subtitle">House Reserve Pool Settings</h3>
+        <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 14px;">
+          <div>
+            <span style="color: #9ca3af; font-size: 0.85rem;">Current Pool Balance:</span>
+            <h4 id="display-house-pool" style="color: #10b981; margin: 4px 0 0 0; font-size: 1.25rem;">0 Coins</h4>
+          </div>
+          <div>
+            <span style="color: #9ca3af; font-size: 0.85rem;">Max Allowed Loss Limit:</span>
+            <h4 id="display-max-loss" style="color: #ef4444; margin: 4px 0 0 0; font-size: 1.25rem;">0 Coins</h4>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <input type="number" id="input-house-pool" class="coin-input" placeholder="Set Pool Balance" style="flex: 1; min-width: 140px;">
+          <input type="number" id="input-max-loss" class="coin-input" placeholder="Set Max Loss Limit" style="flex: 1; min-width: 140px;">
+          <button id="btn-save-pool" class="btn-game" style="background: #2563eb; color: #fff; width: auto; padding: 8px 16px;">Update Settings</button>
+        </div>
+      </div>
+
       <div class="panel-card">
         <h3 class="panel-subtitle">User Balances & Add/Remove Coins</h3>
         <div id="admin-user-list"></div>
