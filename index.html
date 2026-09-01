@@ -235,6 +235,29 @@
     </div>
   </div>
 
+  <!-- Bet Clamping Script added here -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const clampInput = (id, max) => {
+        const input = document.getElementById(id);
+        if (!input) return;
+        
+        input.addEventListener("input", () => {
+          let val = parseInt(input.value);
+          if (val > max) {
+            input.value = max;
+          } else if (val < 1 && input.value !== "") {
+            input.value = 1;
+          }
+        });
+      };
+
+      clampInput("coinflip-bet", 25);
+      clampInput("dice-bet", 50);
+      clampInput("bj-bet", 30);
+    });
+  </script>
+  
   <script type="module" src="app.js"></script>
 </body>
 </html>
