@@ -20,6 +20,13 @@ const db = getFirestore(app);
 let currentUser = null;
 let userData = null;
 
+// Helper function to calculate target win probability based on bet amount
+function getWinChance(bet) {
+  if (bet < 10) return 0.40;       // Less than 10c -> 40%
+  if (bet > 20) return 0.25;       // More than 20c -> 25%
+  return 0.30;                     // Between 10c and 20c (inclusive) -> 30%
+}
+
 // --- AUTHENTICATION ---
 document.getElementById("btn-signup")?.addEventListener("click", async () => {
   const email = document.getElementById("auth-email").value.trim();
@@ -109,7 +116,10 @@ window.play3DCoinflip = async (choice) => {
   const coin = document.getElementById("coin");
 
   if (isNaN(bet) || bet <= 0 || bet > userData.balance) {
-    return alert("Invalid bet amount!");
+    return alert("Invalid bet amount or insufficient balance!");
+  }
+  if (bet > 25) {
+    return alert("Maximum bet limit for Coinflip is 25 coins.");
   }
 
   coin.style.transition = "none";
@@ -117,8 +127,17 @@ window.play3DCoinflip = async (choice) => {
   void coin.offsetWidth;
   coin.style.transition = "transform 3s cubic-bezier(0.15, 0.85, 0.35, 1.2)";
 
-  const outcome = Math.random() < 0.5 ? "heads" : "tails";
-  const won = outcome === choice;
+  // Weighted win calculation
+  const winChance = getWinChance(bet);
+  const won = Math.random() < winChance;
+  
+  let outcome;
+  if (won) {
+    outcome = choice;
+  } else {
+    outcome = choice === "heads" ? "tails" : "heads";
+  }
+
   const newBalance = won ? userData.balance + bet : userData.balance - bet;
 
   coin.classList.add(outcome === "heads" ? "animate-heads" : "animate-tails");
@@ -126,7 +145,6 @@ window.play3DCoinflip = async (choice) => {
   resultText.className = "game-status-text text-blue";
 
   setTimeout(async () => {
-    // Record wager and adjust user balance
     await updateDoc(doc(db, "users", currentUser.uid), { 
       balance: newBalance,
       wagered: increment(bet)
@@ -154,17 +172,38 @@ window.playDice = async () => {
     resultText.className = "game-status-text text-red";
     return;
   }
+  if (bet > 50) {
+    resultText.innerText = "Maximum bet limit for Dice is 50 coins.";
+    resultText.className = "game-status-text text-red";
+    return;
+  }
 
-  const roll = Math.floor(Math.random() * 6) + 1;
+  // Determine if this play will be a forced win or loss based on bet amount
+  const winChance = getWinChance(bet);
+  const won = Math.random() < winChance;
+
+  let validNumbers = [];
+  let invalidNumbers = [];
+
+  if (target === "under3") {
+    validNumbers = [1, 2];
+    invalidNumbers = [3, 4, 5, 6];
+  } else if (target === "over3") {
+    validNumbers = [4, 5, 6];
+    invalidNumbers = [1, 2, 3];
+  } else if (target === "exact6") {
+    validNumbers = [6];
+    invalidNumbers = [1, 2, 3, 4, 5];
+  }
+
+  // Select roll outcome based on target probability
+  const pool = won ? validNumbers : invalidNumbers;
+  const roll = pool[Math.floor(Math.random() * pool.length)];
+
   const diceEmojis = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
   display.innerText = diceEmojis[roll];
 
-  let won = false;
-  let multiplier = 0;
-
-  if (target === "under3" && roll < 3) { won = true; multiplier = 2; }
-  else if (target === "over3" && roll > 3) { won = true; multiplier = 2; }
-  else if (target === "exact6" && roll === 6) { won = true; multiplier = 5; }
+  const multiplier = target === "exact6" ? 5 : 2;
 
   if (won) {
     const profit = bet * (multiplier - 1);
@@ -185,7 +224,7 @@ window.playDice = async () => {
 };
 
 // --- BLACKJACK GAME ---
-let bjDeck = [], playerHand = [], dealerHand = [], bjBetAmount = 0;
+let bjDeck = [], playerHand = [], dealerHand = [], bjBetAmount = 0, bjIsForcedLoss = false;
 
 function createDeck() {
   const suits = ['♠', '♥', '♦', '♣'], values = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
@@ -235,15 +274,30 @@ window.startBlackjack = async () => {
     resultText.className = "game-status-text text-red";
     return;
   }
+  if (bjBetAmount > 30) {
+    resultText.innerText = "Maximum bet limit for Blackjack is 30 coins.";
+    resultText.className = "game-status-text text-red";
+    return;
+  }
 
-  // Increment total wagered amount upon starting the hand
+  // Determine hand probability
+  const winChance = getWinChance(bjBetAmount);
+  bjIsForcedLoss = Math.random() >= winChance;
+
   await updateDoc(doc(db, "users", currentUser.uid), {
     wagered: increment(bjBetAmount)
   });
 
   bjDeck = createDeck();
-  playerHand = [bjDeck.pop(), bjDeck.pop()];
-  dealerHand = [bjDeck.pop(), bjDeck.pop()];
+  
+  if (bjIsForcedLoss) {
+    // Deal a weaker starting hand (e.g., 14, 15, or 16)
+    playerHand = [{ value: '10', suit: '♠' }, { value: '5', suit: '♥' }];
+    dealerHand = [{ value: '10', suit: '♦' }, { value: '9', suit: '♣' }];
+  } else {
+    playerHand = [bjDeck.pop(), bjDeck.pop()];
+    dealerHand = [bjDeck.pop(), bjDeck.pop()];
+  }
 
   document.getElementById('bj-setup-btns').classList.add('hidden');
   document.getElementById('bj-action-btns').classList.remove('hidden');
@@ -259,7 +313,13 @@ window.startBlackjack = async () => {
 };
 
 window.hitBlackjack = async () => {
-  playerHand.push(bjDeck.pop());
+  if (bjIsForcedLoss && calculateHand(playerHand) >= 15) {
+    // Force a bust card if target loss flag is active
+    playerHand.push({ value: '10', suit: '♠' });
+  } else {
+    playerHand.push(bjDeck.pop());
+  }
+  
   renderBJ();
   
   if (calculateHand(playerHand) > 21) {
@@ -643,6 +703,7 @@ window.rejectWithdraw = async (reqId, userId, refundCost) => {
   });
   alert("Request rejected & coins refunded!");
 };
+
 // --- MILESTONE REWARDS LOGIC ---
 
 const MILESTONE_TIERS = [
