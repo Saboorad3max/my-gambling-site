@@ -360,10 +360,11 @@ function loadMilestones() {
   if (!container || !userData) return;
 
   const milestones = [
-    { id: 1, target: 100, reward: 20 },
-    { id: 2, target: 500, reward: 100 },
-    { id: 3, target: 1500, reward: 350 },
-    { id: 4, target: 5000, reward: 1200 }
+    { id: 1, target: 100, reward: 5 },
+    { id: 2, target: 500, reward: 10 },
+    { id: 3, target: 1500, reward: 30 },
+    { id: 4, target: 3000, reward: 70 },
+    { id: 5, target: 5000, reward: 140 }
   ];
 
   const wagered = userData?.wagered || 0;
@@ -377,29 +378,29 @@ function loadMilestones() {
     const isClaimed = claimedMilestones.includes(m.id);
 
     const card = document.createElement("div");
-    card.className = "panel-card";
-    card.style.cssText = "margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;";
+    card.className = "milestone-card";
+    card.style.cssText = "margin-bottom: 16px; padding: 16px; background: #111827; border-radius: 8px; border: 1px solid #1f2937;";
 
     let buttonHtml = '';
     if (isClaimed) {
-      buttonHtml = `<button class="btn-game" style="background: #1f2937; color: #9ca3af; cursor: not-allowed;" disabled>Claimed</button>`;
+      buttonHtml = `<button class="btn-game" style="background: #1f2937; color: #9ca3af; cursor: not-allowed; width: 100%; padding: 8px; border: none; border-radius: 4px;" disabled>Claimed</button>`;
     } else if (isCompleted) {
-      buttonHtml = `<button class="btn-game" style="background: #059669; color: #fff; cursor: pointer;" onclick="claimMilestone(${m.id}, ${m.reward})">Claim</button>`;
+      buttonHtml = `<button class="btn-game" style="background: #059669; color: #fff; cursor: pointer; width: 100%; padding: 8px; border: none; border-radius: 4px;" onclick="claimMilestone(${m.id}, ${m.reward})">Claim</button>`;
     } else {
-      buttonHtml = `<button class="btn-game" style="background: #374151; color: #fff; cursor: not-allowed;" disabled>Locked</button>`;
+      buttonHtml = `<button class="btn-game" style="background: #374151; color: #fff; cursor: not-allowed; width: 100%; padding: 8px; border: none; border-radius: 4px;" disabled>Locked</button>`;
     }
 
     card.innerHTML = `
-      <div style="flex: 1; margin-right: 16px;">
-        <h4 style="color: #fff; margin-bottom: 4px;">Milestone ${m.id}: Wager ${m.target} Coins</h4>
+      <div class="milestone-info" style="margin-bottom: 12px;">
+        <h4 style="color: #fff; margin-bottom: 4px; font-size: 1rem;">Milestone ${m.id}: Wager ${m.target} Coins</h4>
         <p style="color: #9ca3af; font-size: 0.85rem; margin-bottom: 8px;">Reward: <strong class="text-green">+${m.reward} Coins</strong></p>
         
-        <div style="background: #1f2937; height: 8px; border-radius: 4px; overflow: hidden; width: 100%;">
+        <div style="background: #1f2937; height: 8px; border-radius: 4px; overflow: hidden; width: 100%; margin-bottom: 6px;">
           <div style="background: #3b82f6; width: ${percentage}%; height: 100%; transition: width 0.3s;"></div>
         </div>
-        <span style="font-size: 0.75rem; color: #9ca3af; margin-top: 4px; display: inline-block;">Progress: ${progress} / ${m.target} (${percentage}%)</span>
+        <span style="font-size: 0.75rem; color: #9ca3af; display: inline-block;">Progress: ${progress} / ${m.target} (${percentage}%)</span>
       </div>
-      <div>
+      <div class="milestone-btn-container">
         ${buttonHtml}
       </div>
     `;
@@ -738,10 +739,11 @@ window.viewUserStats = (uid, username, email, balance, wagered, encodedClaimed) 
 
   // Define milestones mapping dictionary to display specific claimed rewards
   const milestonesDef = [
-    { id: 1, target: 100, reward: 20 },
-    { id: 2, target: 500, reward: 100 },
-    { id: 3, target: 1500, reward: 350 },
-    { id: 4, target: 5000, reward: 1200 }
+    { id: 1, target: 100, reward: 5 },
+    { id: 2, target: 500, reward: 10 },
+    { id: 3, target: 1500, reward: 30 },
+    { id: 4, target: 3000, reward: 70 },
+    { id: 5, target: 5000, reward: 140 }
   ];
 
   let claimedHtml = "";
