@@ -39,7 +39,6 @@ document.getElementById("btn-signup")?.addEventListener("click", async () => {
     const res = await createUserWithEmailAndPassword(auth, email, password);
     const isAdmin = email.toLowerCase() === "saboorezz@gmail.com";
     
-    // Initialize starting balance and wagered tracker at 0
     await setDoc(doc(db, "users", res.user.uid), {
       email, username, balance: 0, wagered: 0, isAdmin
     });
@@ -115,11 +114,15 @@ window.play3DCoinflip = async (choice) => {
   const resultText = document.getElementById("coinflip-result");
   const coin = document.getElementById("coin");
 
-  if (isNaN(bet) || bet <= 0 || bet > userData.balance) {
-    return alert("Invalid bet amount or insufficient balance!");
+  // Strict Max Bet Check
+  if (isNaN(bet) || bet <= 0) {
+    return alert("Please enter a valid bet amount!");
   }
   if (bet > 25) {
     return alert("Maximum bet limit for Coinflip is 25 coins.");
+  }
+  if (bet > userData.balance) {
+    return alert("Insufficient balance!");
   }
 
   coin.style.transition = "none";
@@ -127,17 +130,10 @@ window.play3DCoinflip = async (choice) => {
   void coin.offsetWidth;
   coin.style.transition = "transform 3s cubic-bezier(0.15, 0.85, 0.35, 1.2)";
 
-  // Weighted win calculation
   const winChance = getWinChance(bet);
   const won = Math.random() < winChance;
   
-  let outcome;
-  if (won) {
-    outcome = choice;
-  } else {
-    outcome = choice === "heads" ? "tails" : "heads";
-  }
-
+  let outcome = won ? choice : (choice === "heads" ? "tails" : "heads");
   const newBalance = won ? userData.balance + bet : userData.balance - bet;
 
   coin.classList.add(outcome === "heads" ? "animate-heads" : "animate-tails");
@@ -167,8 +163,9 @@ window.playDice = async () => {
   const resultText = document.getElementById("dice-result");
   const display = document.getElementById("dice-display");
 
-  if (isNaN(bet) || bet <= 0 || bet > userData.balance) {
-    resultText.innerText = "Invalid bet amount or insufficient balance!";
+  // Strict Max Bet Check
+  if (isNaN(bet) || bet <= 0) {
+    resultText.innerText = "Please enter a valid bet amount!";
     resultText.className = "game-status-text text-red";
     return;
   }
@@ -177,8 +174,12 @@ window.playDice = async () => {
     resultText.className = "game-status-text text-red";
     return;
   }
+  if (bet > userData.balance) {
+    resultText.innerText = "Insufficient balance!";
+    resultText.className = "game-status-text text-red";
+    return;
+  }
 
-  // Determine if this play will be a forced win or loss based on bet amount
   const winChance = getWinChance(bet);
   const won = Math.random() < winChance;
 
@@ -196,7 +197,6 @@ window.playDice = async () => {
     invalidNumbers = [1, 2, 3, 4, 5];
   }
 
-  // Select roll outcome based on target probability
   const pool = won ? validNumbers : invalidNumbers;
   const roll = pool[Math.floor(Math.random() * pool.length)];
 
@@ -269,8 +269,9 @@ window.startBlackjack = async () => {
   bjBetAmount = parseInt(document.getElementById('bj-bet').value);
   const resultText = document.getElementById('bj-result');
 
-  if (isNaN(bjBetAmount) || bjBetAmount <= 0 || bjBetAmount > userData.balance) {
-    resultText.innerText = "Invalid bet amount or insufficient balance!";
+  // Strict Max Bet Check
+  if (isNaN(bjBetAmount) || bjBetAmount <= 0) {
+    resultText.innerText = "Please enter a valid bet amount!";
     resultText.className = "game-status-text text-red";
     return;
   }
@@ -279,8 +280,12 @@ window.startBlackjack = async () => {
     resultText.className = "game-status-text text-red";
     return;
   }
+  if (bjBetAmount > userData.balance) {
+    resultText.innerText = "Insufficient balance!";
+    resultText.className = "game-status-text text-red";
+    return;
+  }
 
-  // Determine hand probability
   const winChance = getWinChance(bjBetAmount);
   bjIsForcedLoss = Math.random() >= winChance;
 
@@ -291,7 +296,6 @@ window.startBlackjack = async () => {
   bjDeck = createDeck();
   
   if (bjIsForcedLoss) {
-    // Deal a weaker starting hand (e.g., 14, 15, or 16)
     playerHand = [{ value: '10', suit: '♠' }, { value: '5', suit: '♥' }];
     dealerHand = [{ value: '10', suit: '♦' }, { value: '9', suit: '♣' }];
   } else {
@@ -314,7 +318,6 @@ window.startBlackjack = async () => {
 
 window.hitBlackjack = async () => {
   if (bjIsForcedLoss && calculateHand(playerHand) >= 15) {
-    // Force a bust card if target loss flag is active
     playerHand.push({ value: '10', suit: '♠' });
   } else {
     playerHand.push(bjDeck.pop());
@@ -647,7 +650,6 @@ function loadAdminPanel() {
   });
 }
 
-// Open User Stats / Wager Modal
 window.viewUserStats = (uid, username, email, balance, wagered) => {
   document.getElementById("stats-username").innerText = `${username}'s Profile`;
   document.getElementById("stats-email").innerText = email;
@@ -660,13 +662,11 @@ document.getElementById("btn-close-stats")?.addEventListener("click", () => {
   document.getElementById("user-stats-modal").classList.add("hidden");
 });
 
-// Admin Tip Action
 window.openAdminTip = (username) => {
   document.getElementById("tip-recipient").value = username;
   document.getElementById("tip-modal").classList.remove("hidden");
 };
 
-// Admin Deduct Balance Action
 window.deductUserBalance = async (uid, username, currentBalance) => {
   const amountStr = prompt(`Enter number of coins to deduct from ${username}:`);
   if (!amountStr) return;
@@ -702,100 +702,4 @@ window.rejectWithdraw = async (reqId, userId, refundCost) => {
     t.update(doc(db, "withdrawals", reqId), { status: "rejected" });
   });
   alert("Request rejected & coins refunded!");
-};
-
-// --- MILESTONE REWARDS LOGIC ---
-
-const MILESTONE_TIERS = [
-  { id: 1, requiredWager: 1500, reward: 30, label: "Tier 1: 1,500 Wagered" },
-  { id: 2, requiredWager: 6000, reward: 60, label: "Tier 2: 6,000 Wagered" },
-  { id: 3, requiredWager: 16000, reward: 150, label: "Tier 3: 16,000 Wagered" }
-];
-
-function getThreeDayCycleId() {
-  const now = new Date();
-  const epochDays = Math.floor(now.getTime() / (1000 * 60 * 60 * 24));
-  return Math.floor(epochDays / 3);
-}
-
-function renderMilestoneRewards(userMilestoneData) {
-  const container = document.getElementById("milestone-rewards-list");
-  if (!container) return;
-  container.innerHTML = "";
-
-  const currentCycle = getThreeDayCycleId();
-  const userCycle = userMilestoneData?.cycleId === currentCycle ? userMilestoneData : { cycleId: currentCycle, wageredInCycle: 0, claimedTiers: [] };
-  const currentWagered = userCycle.wageredInCycle;
-
-  MILESTONE_TIERS.forEach(tier => {
-    const isClaimed = userCycle.claimedTiers.includes(tier.id);
-    const isUnlocked = currentWagered >= tier.requiredWager;
-    
-    let btnText = "Locked";
-    let btnDisabled = true;
-    let btnClass = "btn-secondary";
-
-    if (isClaimed) {
-      btnText = "Claimed ✓";
-    } else if (isUnlocked) {
-      btnText = `Claim ${tier.reward} Coins`;
-      btnDisabled = false;
-      btnClass = "btn-primary";
-    }
-
-    const progressPercent = Math.min(100, Math.floor((currentWagered / tier.requiredWager) * 100));
-
-    container.innerHTML += `
-      <div class="game-card" style="margin-bottom: 12px; padding: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <h4 style="margin: 0; color: #fff;">${tier.label}</h4>
-          <span style="color: #3b82f6; font-weight: bold;">+${tier.reward} Tokens</span>
-        </div>
-        <p style="font-size: 13px; color: #9ca3af; margin-bottom: 8px;">Progress: ${currentWagered} / ${tier.requiredWager} (${progressPercent}%)</p>
-        <div style="background: #374151; height: 6px; border-radius: 3px; margin-bottom: 12px; overflow: hidden;">
-          <div style="background: #3b82f6; width: ${progressPercent}%; height: 100%;"></div>
-        </div>
-        <button class="${btnClass}" ${btnDisabled ? "disabled" : ""} onclick="claimMilestone(${tier.id}, ${tier.reward})">${btnText}</button>
-      </div>`;
-  });
-}
-
-window.claimMilestone = async (tierId, rewardAmount) => {
-  if (!currentUser) return;
-  const currentCycle = getThreeDayCycleId();
-  const userRef = doc(db, "users", currentUser.uid);
-
-  try {
-    await runTransaction(db, async (t) => {
-      const uDoc = await t.get(userRef);
-      if (!uDoc.exists()) throw new Error("User data not found!");
-
-      const data = uDoc.data();
-      let milestoneData = data.milestones || { cycleId: currentCycle, wageredInCycle: 0, claimedTiers: [] };
-
-      if (milestoneData.cycleId !== currentCycle) {
-        milestoneData = { cycleId: currentCycle, wageredInCycle: data.wagered || 0, claimedTiers: [] };
-      }
-
-      if (milestoneData.claimedTiers.includes(tierId)) {
-        throw new Error("Tier already claimed!");
-      }
-
-      const targetTier = MILESTONE_TIERS.find(tr => tr.id === tierId);
-      if (milestoneData.wageredInCycle < targetTier.requiredWager) {
-        throw new Error("Wager requirement not met yet!");
-      }
-
-      milestoneData.claimedTiers.push(tierId);
-
-      t.update(userRef, {
-        balance: data.balance + rewardAmount,
-        milestones: milestoneData
-      });
-    });
-
-    alert(`Successfully claimed ${rewardAmount} tokens!`);
-  } catch (err) {
-    alert(err.message);
-  }
 };
