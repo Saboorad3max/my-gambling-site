@@ -20,6 +20,7 @@ const db = getFirestore(app);
 let currentUser = null;
 let userData = null;
 let housePoolData = { poolBalance: 10000, maxLossLimit: 5000 };
+let isGameProcessing = false; // Prevents spam clicking and race conditions
 
 // Helper function to calculate target win probability based on bet amount
 function getWinChance(bet) {
@@ -128,6 +129,8 @@ window.closeGame = () => {
 
 // --- 3D ANIMATED COINFLIP ---
 window.play3DCoinflip = async (choice) => {
+  if (isGameProcessing) return;
+  
   const betInput = document.getElementById("coinflip-bet");
   const bet = parseInt(betInput.value);
   const resultText = document.getElementById("coinflip-result");
@@ -136,6 +139,8 @@ window.play3DCoinflip = async (choice) => {
   if (isNaN(bet) || bet <= 0 || bet > userData.balance) {
     return alert("Invalid bet amount or insufficient balance!");
   }
+
+  isGameProcessing = true;
 
   coin.style.transition = "none";
   coin.className = "coin";
@@ -154,29 +159,17 @@ window.play3DCoinflip = async (choice) => {
 
   setTimeout(async () => {
     try {
-      await runTransaction(db, async (t) => {
-        const userRef = doc(db, "users", currentUser.uid);
-        const poolRef = doc(db, "settings", "housePool");
-        
-        const uDoc = await t.get(userRef);
-        const pDoc = await t.get(poolRef);
-        
-        const currentBal = uDoc.data().balance;
-        const currentPool = pDoc.data().poolBalance;
-        const maxLoss = pDoc.data().maxLossLimit;
+      const userRef = doc(db, "users", currentUser.uid);
+      const poolRef = doc(db, "settings", "housePool");
 
-        if (won && (currentPool - bet) < -maxLoss) {
-          throw new Error("House reserve safety limit reached.");
-        }
+      // Atomic updates prevent Firestore transaction collisions on housePool
+      await updateDoc(userRef, {
+        balance: increment(netChange),
+        wagered: increment(bet)
+      });
 
-        t.update(userRef, { 
-          balance: currentBal + netChange,
-          wagered: increment(bet)
-        });
-
-        t.update(poolRef, {
-          poolBalance: currentPool - netChange
-        });
+      await updateDoc(poolRef, {
+        poolBalance: increment(-netChange)
       });
 
       if (won) {
@@ -189,12 +182,16 @@ window.play3DCoinflip = async (choice) => {
     } catch (err) {
       resultText.innerText = `⚠️ ${err.message}`;
       resultText.className = "game-status-text text-red";
+    } finally {
+      isGameProcessing = false;
     }
   }, 3000);
 };
 
 // --- DICE GAME ---
 window.playDice = async () => {
+  if (isGameProcessing) return;
+
   const bet = parseInt(document.getElementById("dice-bet").value);
   const target = document.getElementById("dice-target").value;
   const resultText = document.getElementById("dice-result");
@@ -205,6 +202,8 @@ window.playDice = async () => {
     resultText.className = "game-status-text text-red";
     return;
   }
+
+  isGameProcessing = true;
 
   const winChance = getWinChance(bet);
   const won = Math.random() < winChance;
@@ -227,20 +226,16 @@ window.playDice = async () => {
   const netChange = won ? netProfit : -bet;
 
   try {
-    await runTransaction(db, async (t) => {
-      const userRef = doc(db, "users", currentUser.uid);
-      const poolRef = doc(db, "settings", "housePool");
+    const userRef = doc(db, "users", currentUser.uid);
+    const poolRef = doc(db, "settings", "housePool");
 
-      const uDoc = await t.get(userRef);
-      const pDoc = await t.get(poolRef);
+    await updateDoc(userRef, {
+      balance: increment(netChange),
+      wagered: increment(bet)
+    });
 
-      t.update(userRef, { 
-        balance: uDoc.data().balance + netChange,
-        wagered: increment(bet)
-      });
-      t.update(poolRef, {
-        poolBalance: pDoc.data().poolBalance - netChange
-      });
+    await updateDoc(poolRef, {
+      poolBalance: increment(-netChange)
     });
 
     if (won) {
@@ -254,6 +249,8 @@ window.playDice = async () => {
   } catch (err) {
     resultText.innerText = `Error: ${err.message}`;
     resultText.className = "game-status-text text-red";
+  } finally {
+    isGameProcessing = false;
   }
 };
 
@@ -297,9 +294,12 @@ function endBJ(msg, colorClass) {
   res.className = `game-status-text ${colorClass}`;
   document.getElementById('bj-setup-btns').classList.remove('hidden');
   document.getElementById('bj-action-btns').classList.add('hidden');
+  isGameProcessing = false;
 }
 
 window.startBlackjack = async () => {
+  if (isGameProcessing) return;
+
   bjBetAmount = parseInt(document.getElementById('bj-bet').value);
   const resultText = document.getElementById('bj-result');
 
@@ -309,6 +309,7 @@ window.startBlackjack = async () => {
     return;
   }
 
+  isGameProcessing = true;
   const winChance = getWinChance(bjBetAmount);
   bjIsForcedLoss = Math.random() >= winChance;
 
@@ -334,15 +335,8 @@ window.startBlackjack = async () => {
 
   if (calculateHand(playerHand) === 21) {
     const payout = Math.floor(bjBetAmount * 1.5);
-    await runTransaction(db, async (t) => {
-      const userRef = doc(db, "users", currentUser.uid);
-      const poolRef = doc(db, "settings", "housePool");
-      const uDoc = await t.get(userRef);
-      const pDoc = await t.get(poolRef);
-
-      t.update(userRef, { balance: uDoc.data().balance + payout });
-      t.update(poolRef, { poolBalance: pDoc.data().poolBalance - payout });
-    });
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: increment(payout) });
+    await updateDoc(doc(db, "settings", "housePool"), { poolBalance: increment(-payout) });
     endBJ(`Blackjack! You won ${payout} coins! 🎉`, 'text-green');
   }
 };
@@ -357,15 +351,8 @@ window.hitBlackjack = async () => {
   renderBJ();
   
   if (calculateHand(playerHand) > 21) {
-    await runTransaction(db, async (t) => {
-      const userRef = doc(db, "users", currentUser.uid);
-      const poolRef = doc(db, "settings", "housePool");
-      const uDoc = await t.get(userRef);
-      const pDoc = await t.get(poolRef);
-
-      t.update(userRef, { balance: uDoc.data().balance - bjBetAmount });
-      t.update(poolRef, { poolBalance: pDoc.data().poolBalance + bjBetAmount });
-    });
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: increment(-bjBetAmount) });
+    await updateDoc(doc(db, "settings", "housePool"), { poolBalance: increment(bjBetAmount) });
     endBJ(`Bust! You lost ${bjBetAmount} coins.`, 'text-red');
   }
 };
@@ -379,28 +366,14 @@ window.standBlackjack = async () => {
   const pScore = calculateHand(playerHand), dScore = calculateHand(dealerHand);
   
   if (dScore > 21 || pScore > dScore) {
-    await runTransaction(db, async (t) => {
-      const userRef = doc(db, "users", currentUser.uid);
-      const poolRef = doc(db, "settings", "housePool");
-      const uDoc = await t.get(userRef);
-      const pDoc = await t.get(poolRef);
-
-      t.update(userRef, { balance: uDoc.data().balance + bjBetAmount });
-      t.update(poolRef, { poolBalance: pDoc.data().poolBalance - bjBetAmount });
-    });
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: increment(bjBetAmount) });
+    await updateDoc(doc(db, "settings", "housePool"), { poolBalance: increment(-bjBetAmount) });
     endBJ(`You win ${bjBetAmount} coins! 🎉`, 'text-green');
   } else if (pScore === dScore) {
     endBJ(`Push! Your bet was returned.`, 'text-blue');
   } else {
-    await runTransaction(db, async (t) => {
-      const userRef = doc(db, "users", currentUser.uid);
-      const poolRef = doc(db, "settings", "housePool");
-      const uDoc = await t.get(userRef);
-      const pDoc = await t.get(poolRef);
-
-      t.update(userRef, { balance: uDoc.data().balance - bjBetAmount });
-      t.update(poolRef, { poolBalance: pDoc.data().poolBalance + bjBetAmount });
-    });
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: increment(-bjBetAmount) });
+    await updateDoc(doc(db, "settings", "housePool"), { poolBalance: increment(bjBetAmount) });
     endBJ(`Dealer wins. You lost ${bjBetAmount} coins.`, 'text-red');
   }
 };
@@ -458,20 +431,17 @@ document.getElementById("btn-confirm-tip")?.addEventListener("click", async () =
   }
 
   try {
-    await runTransaction(db, async (transaction) => {
-      const q = query(collection(db, "users"), where("username", "==", recipientName));
-      const snap = await getDocs(q);
-      if (snap.empty) throw new Error("User not found!");
+    const q = query(collection(db, "users"), where("username", "==", recipientName));
+    const snap = await getDocs(q);
+    if (snap.empty) throw new Error("User not found!");
 
-      const targetDoc = snap.docs[0];
-      const targetData = targetDoc.data();
+    const targetDoc = snap.docs[0];
 
-      if (!isAdmin) {
-        transaction.update(doc(db, "users", currentUser.uid), { balance: userData.balance - amount });
-      }
+    if (!isAdmin) {
+      await updateDoc(doc(db, "users", currentUser.uid), { balance: increment(-amount) });
+    }
 
-      transaction.update(doc(db, "users", targetDoc.id), { balance: targetData.balance + amount });
-    });
+    await updateDoc(doc(db, "users", targetDoc.id), { balance: increment(amount) });
 
     alert(`Successfully tipped ${amount} coins to ${recipientName}!`);
     document.getElementById("tip-modal").classList.add("hidden");
@@ -639,21 +609,16 @@ async function requestWithdraw(name, baseCost, totalCoinsSpent) {
   const displayDetails = `${quantity} ${unitLabel} (${totalCoinsSpent} coins spent)`;
 
   try {
-    await runTransaction(db, async (t) => {
-      const userRef = doc(db, "users", currentUser.uid);
-      const uDoc = await t.get(userRef);
-      if (uDoc.data().balance < totalCoinsSpent) throw new Error("Not enough coins!");
-
-      t.update(userRef, { balance: uDoc.data().balance - totalCoinsSpent });
-      t.set(doc(collection(db, "withdrawals")), {
-        userId: currentUser.uid,
-        username: userData.username,
-        itemName: name,
-        cost: totalCoinsSpent,
-        details: displayDetails,
-        status: "pending",
-        timestamp: new Date()
-      });
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: increment(-totalCoinsSpent) });
+    
+    await addDoc(collection(db, "withdrawals"), {
+      userId: currentUser.uid,
+      username: userData.username,
+      itemName: name,
+      cost: totalCoinsSpent,
+      details: displayDetails,
+      status: "pending",
+      timestamp: new Date()
     });
 
     alert(`Success! Withdrawal request submitted for ${displayDetails}. Sent to Admin for approval.`);
@@ -769,12 +734,13 @@ window.approveWithdraw = async (reqId) => {
 };
 
 window.rejectWithdraw = async (reqId, userId, refundCost) => {
-  await runTransaction(db, async (t) => {
-    const userDoc = await t.get(doc(db, "users", userId));
-    t.update(doc(db, "users", userId), { balance: userDoc.data().balance + refundCost });
-    t.update(doc(db, "withdrawals", reqId), { status: "rejected" });
-  });
-  alert("Request rejected & coins refunded!");
+  try {
+    await updateDoc(doc(db, "users", userId), { balance: increment(refundCost) });
+    await updateDoc(doc(db, "withdrawals", reqId), { status: "rejected" });
+    alert("Request rejected & coins refunded!");
+  } catch (err) {
+    alert(err.message);
+  }
 };
 
 // --- MILESTONE REWARDS LOGIC ---
