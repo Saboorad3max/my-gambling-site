@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, addDoc, onSnapshot, query, orderBy, limit, runTransaction, where, getDocs, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, addDoc, onSnapshot, query, orderBy, limit, runTransaction, where, getDocs, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -442,7 +442,7 @@ async function sendMessage() {
   await addDoc(collection(db, "chat"), {
     sender: userData.username,
     text: text,
-    timestamp: new Date()
+    timestamp: serverTimestamp()
   });
   chatInput.value = "";
 }
@@ -490,19 +490,23 @@ document.getElementById("btn-confirm-tip")?.addEventListener("click", async () =
     }
     await updateDoc(doc(db, "users", targetDoc.id), { balance: increment(amount) });
 
-    if (isAdmin) {
-      // Admin route: Local popup notification only
-      showTipNotification(`Added ${amount} coins to balance`);
-    } else {
-      // Player route: Public global broadcast
-      const tipMsg = `${userData.username} tipped ${amount} coins to ${recipientName}`;
-      await addDoc(collection(db, "tip_notifications"), {
-        message: tipMsg,
-        timestamp: new Date()
-      });
-    }
+    // Broadcast message construction for all users / global toast feed
+    const tipMsg = isAdmin 
+      ? `Admin tipped ${amount} coins to ${recipientName}` 
+      : `${userData.username} tipped ${amount} coins to ${recipientName}`;
+
+    // Write to Firestore using serverTimestamp() so every connected client triggers the snapshot listener properly
+    await addDoc(collection(db, "tip_notifications"), {
+      message: tipMsg,
+      timestamp: serverTimestamp()
+    });
+
+    // Immediate confirmation feedback toast for the person performing the action (sender or admin)
+    showTipNotification(isAdmin ? `Successfully added ${amount} coins to ${recipientName}` : `You tipped ${amount} coins to ${recipientName}`);
 
     document.getElementById("tip-modal")?.classList.add("hidden");
+    document.getElementById("tip-recipient").value = "";
+    document.getElementById("tip-amount").value = "";
   } catch (err) {
     alert(err.message);
   }
@@ -678,7 +682,7 @@ async function requestWithdraw(name, baseCost, totalCoinsSpent) {
       cost: totalCoinsSpent,
       details: displayDetails,
       status: "pending",
-      timestamp: new Date()
+      timestamp: serverTimestamp()
     });
 
     alert(`Success! Withdrawal request submitted for ${displayDetails}. Sent to Admin for approval.`);
