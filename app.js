@@ -20,7 +20,7 @@ const db = getFirestore(app);
 let currentUser = null;
 let userData = null;
 let housePoolData = { poolBalance: 10000, maxLossLimit: 5000 };
-let isGameProcessing = false; // Prevents spam clicking and race conditions
+let isGameProcessing = false;
 
 // Helper function to calculate target win probability based on bet amount
 function getWinChance(bet) {
@@ -136,7 +136,8 @@ window.play3DCoinflip = async (choice) => {
   const resultText = document.getElementById("coinflip-result");
   const coin = document.getElementById("coin");
 
-  if (isNaN(bet) || bet <= 0 || bet > userData.balance) {
+  // UNLIMITED BETTING: Only validates minimum 1 coin and available user balance
+  if (isNaN(bet) || bet < 1 || bet > userData.balance) {
     return alert("Invalid bet amount or insufficient balance!");
   }
 
@@ -162,7 +163,6 @@ window.play3DCoinflip = async (choice) => {
       const userRef = doc(db, "users", currentUser.uid);
       const poolRef = doc(db, "settings", "housePool");
 
-      // Atomic updates prevent Firestore transaction collisions on housePool
       await updateDoc(userRef, {
         balance: increment(netChange),
         wagered: increment(bet)
@@ -197,7 +197,8 @@ window.playDice = async () => {
   const resultText = document.getElementById("dice-result");
   const display = document.getElementById("dice-display");
 
-  if (isNaN(bet) || bet <= 0 || bet > userData.balance) {
+  // UNLIMITED BETTING: Validates starting at 1 coin up to max balance
+  if (isNaN(bet) || bet < 1 || bet > userData.balance) {
     resultText.innerText = "Invalid bet amount or insufficient balance!";
     resultText.className = "game-status-text text-red";
     return;
@@ -303,7 +304,8 @@ window.startBlackjack = async () => {
   bjBetAmount = parseInt(document.getElementById('bj-bet').value);
   const resultText = document.getElementById('bj-result');
 
-  if (isNaN(bjBetAmount) || bjBetAmount <= 0 || bjBetAmount > userData.balance) {
+  // UNLIMITED BETTING: Accepts 1 coin up to full user balance
+  if (isNaN(bjBetAmount) || bjBetAmount < 1 || bjBetAmount > userData.balance) {
     resultText.innerText = "Invalid bet amount or insufficient balance!";
     resultText.className = "game-status-text text-red";
     return;
@@ -735,7 +737,7 @@ window.approveWithdraw = async (reqId) => {
 
 window.rejectWithdraw = async (reqId, userId, refundCost) => {
   try {
-    await updateDoc(doc(db, "users", userId), { balance: increment(refundCost) });
+    await updateDoc(doc(doc(db, "users", userId)), { balance: increment(refundCost) });
     await updateDoc(doc(db, "withdrawals", reqId), { status: "rejected" });
     alert("Request rejected & coins refunded!");
   } catch (err) {
