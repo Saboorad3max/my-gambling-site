@@ -19,7 +19,7 @@ const db = getFirestore(app);
 
 let currentUser = null;
 let userData = null;
-let housePoolData = { poolBalance: 10000, maxLossLimit: 5000 }; // Default fallback
+let housePoolData = { poolBalance: 10000, maxLossLimit: 5000 };
 
 // Helper function to calculate target win probability based on bet amount
 function getWinChance(bet) {
@@ -40,7 +40,6 @@ document.getElementById("btn-signup")?.addEventListener("click", async () => {
     const res = await createUserWithEmailAndPassword(auth, email, password);
     const isAdmin = email.toLowerCase() === "saboorezz@gmail.com";
     
-    // Initialize starting balance and wagered tracker at 0
     await setDoc(doc(db, "users", res.user.uid), {
       email, username, balance: 0, wagered: 0, isAdmin
     });
@@ -77,7 +76,7 @@ onAuthStateChanged(auth, async (user) => {
       }
     });
 
-    // Listen to House Pool metrics globally for admins/games
+    // Sync House Reserve Metrics
     onSnapshot(doc(db, "settings", "housePool"), (docSnap) => {
       if (docSnap.exists()) {
         housePoolData = docSnap.data();
@@ -91,7 +90,6 @@ onAuthStateChanged(auth, async (user) => {
         if (inputPool && document.activeElement !== inputPool) inputPool.value = housePoolData.poolBalance;
         if (inputLoss && document.activeElement !== inputLoss) inputLoss.value = housePoolData.maxLossLimit;
       } else {
-        // Initialize default pool doc if missing
         setDoc(doc(db, "settings", "housePool"), { poolBalance: 10000, maxLossLimit: 5000 });
       }
     });
@@ -138,16 +136,12 @@ window.play3DCoinflip = async (choice) => {
   if (isNaN(bet) || bet <= 0 || bet > userData.balance) {
     return alert("Invalid bet amount or insufficient balance!");
   }
-  if (bet > 25) {
-    return alert("Maximum bet limit for Coinflip is 25 coins.");
-  }
 
   coin.style.transition = "none";
   coin.className = "coin";
   void coin.offsetWidth;
   coin.style.transition = "transform 3s cubic-bezier(0.15, 0.85, 0.35, 1.2)";
 
-  // Weighted win calculation
   const winChance = getWinChance(bet);
   const won = Math.random() < winChance;
   
@@ -171,8 +165,8 @@ window.play3DCoinflip = async (choice) => {
         const currentPool = pDoc.data().poolBalance;
         const maxLoss = pDoc.data().maxLossLimit;
 
-        if (won && currentPool - bet < -maxLoss) {
-          throw new Error("House reserve safety lock triggered. Payout adjusted.");
+        if (won && (currentPool - bet) < -maxLoss) {
+          throw new Error("House reserve safety limit reached.");
         }
 
         t.update(userRef, { 
@@ -180,7 +174,6 @@ window.play3DCoinflip = async (choice) => {
           wagered: increment(bet)
         });
 
-        // House pool takes the opposite side of player action (-netChange)
         t.update(poolRef, {
           poolBalance: currentPool - netChange
         });
@@ -209,11 +202,6 @@ window.playDice = async () => {
 
   if (isNaN(bet) || bet <= 0 || bet > userData.balance) {
     resultText.innerText = "Invalid bet amount or insufficient balance!";
-    resultText.className = "game-status-text text-red";
-    return;
-  }
-  if (bet > 50) {
-    resultText.innerText = "Maximum bet limit for Dice is 50 coins.";
     resultText.className = "game-status-text text-red";
     return;
   }
@@ -317,11 +305,6 @@ window.startBlackjack = async () => {
 
   if (isNaN(bjBetAmount) || bjBetAmount <= 0 || bjBetAmount > userData.balance) {
     resultText.innerText = "Invalid bet amount or insufficient balance!";
-    resultText.className = "game-status-text text-red";
-    return;
-  }
-  if (bjBetAmount > 30) {
-    resultText.innerText = "Maximum bet limit for Blackjack is 30 coins.";
     resultText.className = "game-status-text text-red";
     return;
   }
@@ -795,7 +778,6 @@ window.rejectWithdraw = async (reqId, userId, refundCost) => {
 };
 
 // --- MILESTONE REWARDS LOGIC ---
-
 const MILESTONE_TIERS = [
   { id: 1, requiredWager: 1500, reward: 30, label: "Tier 1: 1,500 Wagered" },
   { id: 2, requiredWager: 6000, reward: 60, label: "Tier 2: 6,000 Wagered" },
