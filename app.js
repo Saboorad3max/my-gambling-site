@@ -20,82 +20,11 @@ const db = getFirestore(app);
 let currentUser = null;
 let userData = null;
 
-// --- BET COOLDOWN & ANTI-SPAM LOGIC ---
-let isBetOnCooldown = false;
-
-function triggerBetCooldown(cooldownMs = 5000) {
-  isBetOnCooldown = true;
-  
-  // Hard disable all game control and wager action buttons in DOM
-  const allBetBtns = document.querySelectorAll('.btn-game, .btn-heads, .btn-tails, #bj-setup-btns button');
-  allBetBtns.forEach(btn => {
-    btn.disabled = true;
-    btn.style.opacity = '0.5';
-    btn.style.pointerEvents = 'none';
-  });
-
-  setTimeout(() => {
-    isBetOnCooldown = false;
-    
-    // Re-enable interactive elements based on game state
-    const bjActionContainer = document.getElementById('bj-action-btns');
-    if (bjActionContainer && !bjActionContainer.classList.contains('hidden')) {
-      const actionBtns = document.querySelectorAll('#bj-action-btns .btn-game');
-      actionBtns.forEach(btn => {
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.style.pointerEvents = 'auto';
-      });
-    } else {
-      allBetBtns.forEach(btn => {
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.style.pointerEvents = 'auto';
-      });
-    }
-  }, cooldownMs);
-}
-
-// Global listener to prevent rapid Enter key submission on bet inputs
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('input[type="number"]').forEach(input => {
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && isBetOnCooldown) {
-        e.preventDefault();
-        return false;
-      }
-    });
-  });
-});
-
 // Helper function to calculate target win probability based on bet amount
 function getWinChance(bet) {
   if (bet < 10) return 0.40;       // Less than 10c -> 40%
   if (bet > 20) return 0.25;       // More than 20c -> 25%
   return 0.30;                     // Between 10c and 20c (inclusive) -> 30%
-}
-
-// --- MILESTONE HELPERS ---
-function getThreeDayCycleId() {
-  const now = new Date();
-  const epochDays = Math.floor(now.getTime() / (1000 * 60 * 60 * 24));
-  return Math.floor(epochDays / 3);
-}
-
-async function recordWagerForMilestones(userRef, currentData, betAmount) {
-  const currentCycle = getThreeDayCycleId();
-  let milestones = currentData.milestones || { cycleId: currentCycle, wageredInCycle: 0, claimedTiers: [] };
-
-  if (milestones.cycleId !== currentCycle) {
-    milestones = { cycleId: currentCycle, wageredInCycle: betAmount, claimedTiers: [] };
-  } else {
-    milestones.wageredInCycle = (milestones.wageredInCycle || 0) + betAmount;
-  }
-
-  await updateDoc(userRef, {
-    wagered: increment(betAmount),
-    milestones: milestones
-  });
 }
 
 // --- AUTHENTICATION ---
@@ -110,6 +39,7 @@ document.getElementById("btn-signup")?.addEventListener("click", async () => {
     const res = await createUserWithEmailAndPassword(auth, email, password);
     const isAdmin = email.toLowerCase() === "saboorezz@gmail.com";
     
+    // Initialize starting balance and wagered tracker at 0
     await setDoc(doc(db, "users", res.user.uid), {
       email, username, balance: 0, wagered: 0, isAdmin
     });
@@ -143,8 +73,6 @@ onAuthStateChanged(auth, async (user) => {
           document.querySelectorAll(".admin-only").forEach(el => el.classList.remove("hidden"));
           loadAdminPanel();
         }
-
-        renderMilestoneRewards(userData.milestones);
       }
     });
 
@@ -182,19 +110,9 @@ window.closeGame = () => {
 
 // --- 3D ANIMATED COINFLIP ---
 window.play3DCoinflip = async (choice) => {
-  const resultText = document.getElementById("coinflip-result");
-
-  // Immediate guard block before performing any actions
-  if (isBetOnCooldown) {
-    if (resultText) {
-      resultText.innerText = "⏳ Please wait 5 seconds between bets!";
-      resultText.className = "game-status-text text-red";
-    }
-    return;
-  }
-
   const betInput = document.getElementById("coinflip-bet");
   const bet = parseInt(betInput.value);
+  const resultText = document.getElementById("coinflip-result");
   const coin = document.getElementById("coin");
 
   if (isNaN(bet) || bet <= 0 || bet > userData.balance) {
@@ -203,9 +121,6 @@ window.play3DCoinflip = async (choice) => {
   if (bet > 25) {
     return alert("Maximum bet limit for Coinflip is 25 coins.");
   }
-
-  // Lock state instantly
-  triggerBetCooldown(5000);
 
   coin.style.transition = "none";
   coin.className = "coin";
@@ -216,7 +131,13 @@ window.play3DCoinflip = async (choice) => {
   const winChance = getWinChance(bet);
   const won = Math.random() < winChance;
   
-  let outcome = won ? choice : (choice === "heads" ? "tails" : "heads");
+  let outcome;
+  if (won) {
+    outcome = choice;
+  } else {
+    outcome = choice === "heads" ? "tails" : "heads";
+  }
+
   const newBalance = won ? userData.balance + bet : userData.balance - bet;
 
   coin.classList.add(outcome === "heads" ? "animate-heads" : "animate-tails");
@@ -224,9 +145,10 @@ window.play3DCoinflip = async (choice) => {
   resultText.className = "game-status-text text-blue";
 
   setTimeout(async () => {
-    const userRef = doc(db, "users", currentUser.uid);
-    await updateDoc(userRef, { balance: newBalance });
-    await recordWagerForMilestones(userRef, userData, bet);
+    await updateDoc(doc(db, "users", currentUser.uid), { 
+      balance: newBalance,
+      wagered: increment(bet)
+    });
 
     if (won) {
       resultText.innerText = `🎉 You Won! Flipped ${outcome.toUpperCase()}. (+${bet} coins)`;
@@ -240,19 +162,9 @@ window.play3DCoinflip = async (choice) => {
 
 // --- DICE GAME ---
 window.playDice = async () => {
-  const resultText = document.getElementById("dice-result");
-
-  // Immediate guard block
-  if (isBetOnCooldown) {
-    if (resultText) {
-      resultText.innerText = "⏳ Please wait 5 seconds between bets!";
-      resultText.className = "game-status-text text-red";
-    }
-    return;
-  }
-
   const bet = parseInt(document.getElementById("dice-bet").value);
   const target = document.getElementById("dice-target").value;
+  const resultText = document.getElementById("dice-result");
   const display = document.getElementById("dice-display");
 
   if (isNaN(bet) || bet <= 0 || bet > userData.balance) {
@@ -266,12 +178,11 @@ window.playDice = async () => {
     return;
   }
 
-  // Lock state instantly
-  triggerBetCooldown(5000);
-
+  // Determine win condition based on bet probability helper
   const winChance = getWinChance(bet);
   const won = Math.random() < winChance;
 
+  // Map 2-number target ranges
   const rangeMap = {
     "1-2": { valid: [1, 2], invalid: [3, 4, 5, 6] },
     "3-4": { valid: [3, 4], invalid: [1, 2, 5, 6] },
@@ -279,6 +190,8 @@ window.playDice = async () => {
   };
 
   const selectedRange = rangeMap[target] || rangeMap["1-2"];
+
+  // Pick outcome from valid or invalid pool
   const pool = won ? selectedRange.valid : selectedRange.invalid;
   const roll = pool[Math.floor(Math.random() * pool.length)];
 
@@ -286,21 +199,22 @@ window.playDice = async () => {
   display.innerText = diceEmojis[roll];
 
   const multiplier = 2.5;
-  const userRef = doc(db, "users", currentUser.uid);
 
   if (won) {
     const totalPayout = Math.floor(bet * multiplier);
     const netProfit = totalPayout - bet;
 
-    await updateDoc(userRef, { balance: userData.balance + netProfit });
-    await recordWagerForMilestones(userRef, userData, bet);
-
+    await updateDoc(doc(db, "users", currentUser.uid), { 
+      balance: userData.balance + netProfit,
+      wagered: increment(bet)
+    });
     resultText.innerText = `Rolled ${roll}! You won ${totalPayout} coins! 🎉 (2.5x Payout)`;
     resultText.className = "game-status-text text-green";
   } else {
-    await updateDoc(userRef, { balance: userData.balance - bet });
-    await recordWagerForMilestones(userRef, userData, bet);
-
+    await updateDoc(doc(db, "users", currentUser.uid), { 
+      balance: userData.balance - bet,
+      wagered: increment(bet)
+    });
     resultText.innerText = `Rolled ${roll}. You lost ${bet} coins.`;
     resultText.className = "game-status-text text-red";
   }
@@ -349,18 +263,8 @@ function endBJ(msg, colorClass) {
 }
 
 window.startBlackjack = async () => {
-  const resultText = document.getElementById('bj-result');
-
-  // Immediate guard block
-  if (isBetOnCooldown) {
-    if (resultText) {
-      resultText.innerText = "⏳ Please wait 5 seconds between bets!";
-      resultText.className = "game-status-text text-red";
-    }
-    return;
-  }
-
   bjBetAmount = parseInt(document.getElementById('bj-bet').value);
+  const resultText = document.getElementById('bj-result');
 
   if (isNaN(bjBetAmount) || bjBetAmount <= 0 || bjBetAmount > userData.balance) {
     resultText.innerText = "Invalid bet amount or insufficient balance!";
@@ -373,18 +277,18 @@ window.startBlackjack = async () => {
     return;
   }
 
-  // Lock state instantly
-  triggerBetCooldown(5000);
-
+  // Determine hand probability
   const winChance = getWinChance(bjBetAmount);
   bjIsForcedLoss = Math.random() >= winChance;
 
-  const userRef = doc(db, "users", currentUser.uid);
-  await recordWagerForMilestones(userRef, userData, bjBetAmount);
+  await updateDoc(doc(db, "users", currentUser.uid), {
+    wagered: increment(bjBetAmount)
+  });
 
   bjDeck = createDeck();
   
   if (bjIsForcedLoss) {
+    // Deal a weaker starting hand (e.g., 14, 15, or 16)
     playerHand = [{ value: '10', suit: '♠' }, { value: '5', suit: '♥' }];
     dealerHand = [{ value: '10', suit: '♦' }, { value: '9', suit: '♣' }];
   } else {
@@ -400,13 +304,14 @@ window.startBlackjack = async () => {
 
   if (calculateHand(playerHand) === 21) {
     const payout = Math.floor(bjBetAmount * 1.5);
-    await updateDoc(userRef, { balance: userData.balance + payout });
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: userData.balance + payout });
     endBJ(`Blackjack! You won ${payout} coins! 🎉`, 'text-green');
   }
 };
 
 window.hitBlackjack = async () => {
   if (bjIsForcedLoss && calculateHand(playerHand) >= 15) {
+    // Force a bust card if target loss flag is active
     playerHand.push({ value: '10', suit: '♠' });
   } else {
     playerHand.push(bjDeck.pop());
@@ -803,6 +708,12 @@ const MILESTONE_TIERS = [
   { id: 2, requiredWager: 6000, reward: 60, label: "Tier 2: 6,000 Wagered" },
   { id: 3, requiredWager: 16000, reward: 150, label: "Tier 3: 16,000 Wagered" }
 ];
+
+function getThreeDayCycleId() {
+  const now = new Date();
+  const epochDays = Math.floor(now.getTime() / (1000 * 60 * 60 * 24));
+  return Math.floor(epochDays / 3);
+}
 
 function renderMilestoneRewards(userMilestoneData) {
   const container = document.getElementById("milestone-rewards-list");
