@@ -1,464 +1,509 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, addDoc,
-onSnapshot, query, orderBy, limit, runTransaction, where, getDocs, increment } from
-"https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, addDoc, onSnapshot, query, orderBy, limit, runTransaction, where, getDocs, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // Firebase Configuration
 const firebaseConfig = {
- apiKey: "AIzaSyBHZwUmzG9SZLLr6D3HZyY63gEwkr1PVkw",
- authDomain: "virtual-coins-90dcc.firebaseapp.com",
- projectId: "virtual-coins-90dcc",
- storageBucket: "virtual-coins-90dcc.firebasestorage.app",
- messagingSenderId: "954901410669",
- appId: "1:954901410669:web:c958a4862a80a6ecf5e064",
- measurementId: "G-PV47P946DS"
+  apiKey: "AIzaSyBHZwUmzG9SZLLr6D3HZyY63gEwkr1PVkw",
+  authDomain: "virtual-coins-90dcc.firebaseapp.com",
+  projectId: "virtual-coins-90dcc",
+  storageBucket: "virtual-coins-90dcc.firebasestorage.app",
+  messagingSenderId: "954901410669",
+  appId: "1:954901410669:web:c958a4862a80a6ecf5e064",
+  measurementId: "G-PV47P946DS"
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
 let currentUser = null;
 let userData = null;
 let globalSettings = { housePool: 10000 };
 
 // Helper function to calculate target win probability based on bet amount and house pool
 function getAdjustedWinChance(bet, potentialWin, housePool) {
- if (housePool <= 0 || potentialWin > housePool) {
- return 0.15; // Heavy penalty if pool is dry
- }
- if (bet < 10) return 0.40;
- if (bet > 20) return 0.25;
- return 0.30;
+  if (housePool <= 0 || potentialWin > housePool) {
+    return 0.15; // Heavy penalty if pool is dry
+  }
+  
+  if (bet < 10) return 0.40;
+  if (bet > 20) return 0.25;
+  return 0.30;
 }
 
 // Helper function to check and handle 3-day milestone resets
 async function checkMilestoneReset(userId, userDocData) {
- const now = Date.now();
- const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
- const lastReset = userDocData.lastMilestoneReset || 0;
- if (now - lastReset >= THREE_DAYS_MS) {
- try {
- await updateDoc(doc(db, "users", userId), {
- wagered: 0,
- claimedMilestones: [],
- lastMilestoneReset: now
- });
- } catch (err) {
- console.error("Error resetting milestones:", err);
- }
- }
+  const now = Date.now();
+  const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+  const lastReset = userDocData.lastMilestoneReset || 0;
+
+  if (now - lastReset >= THREE_DAYS_MS) {
+    try {
+      await updateDoc(doc(db, "users", userId), {
+        wagered: 0,
+        claimedMilestones: [],
+        lastMilestoneReset: now
+      });
+    } catch (err) {
+      console.error("Error resetting milestones:", err);
+    }
+  }
 }
 
 // --- AUTHENTICATION ---
 document.getElementById("btn-signup")?.addEventListener("click", async () => {
- const email = document.getElementById("auth-email").value.trim();
- const password = document.getElementById("auth-password").value;
- const username = document.getElementById("auth-username").value.trim();
- if (!email || !password || !username) return alert("Fill all fields!");
- try {
- const res = await createUserWithEmailAndPassword(auth, email, password);
- const isAdmin = email.toLowerCase() === "saboorezz@gmail.com";
- 
- await setDoc(doc(db, "users", res.user.uid), {
- email, username, balance: 0, wagered: 0, isAdmin, claimedMilestones: [],
- lastMilestoneReset: Date.now()
- });
- alert("Account created successfully!");
- } catch (err) { alert(err.message); }
+  const email = document.getElementById("auth-email").value.trim();
+  const password = document.getElementById("auth-password").value;
+  const username = document.getElementById("auth-username").value.trim();
+
+  if (!email || !password || !username) return alert("Fill all fields!");
+
+  try {
+    const res = await createUserWithEmailAndPassword(auth, email, password);
+    const isAdmin = email.toLowerCase() === "saboorezz@gmail.com";
+    
+    await setDoc(doc(db, "users", res.user.uid), {
+      email, username, balance: 0, wagered: 0, isAdmin, claimedMilestones: [], lastMilestoneReset: Date.now()
+    });
+    alert("Account created successfully!");
+  } catch (err) { alert(err.message); }
 });
 
 document.getElementById("btn-login")?.addEventListener("click", async () => {
- const email = document.getElementById("auth-email").value.trim();
- const password = document.getElementById("auth-password").value;
- try {
- await signInWithEmailAndPassword(auth, email, password);
- } catch (err) { alert(err.message); }
+  const email = document.getElementById("auth-email").value.trim();
+  const password = document.getElementById("auth-password").value;
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (err) { alert(err.message); }
 });
 
 document.getElementById("btn-logout")?.addEventListener("click", () => signOut(auth));
 
 onAuthStateChanged(auth, async (user) => {
- if (user) {
- currentUser = user;
- document.getElementById("auth-container").classList.add("hidden");
- document.getElementById("app-container").classList.remove("hidden");
- 
- onSnapshot(doc(db, "settings", "casino"), (docSnap) => {
- if (docSnap.exists()) {
- globalSettings = docSnap.data();
- } else {
- setDoc(doc(db, "settings", "casino"), { housePool: 10000 });
- }
- });
+  if (user) {
+    currentUser = user;
+    document.getElementById("auth-container").classList.add("hidden");
+    document.getElementById("app-container").classList.remove("hidden");
 
- onSnapshot(doc(db, "users", user.uid), async (docSnap) => {
- if (docSnap.exists()) {
- userData = docSnap.data();
- await checkMilestoneReset(user.uid, userData);
- document.getElementById("display-user").innerText = userData.username;
- document.getElementById("display-balance").innerText = userData.balance;
- if (userData.isAdmin || currentUser.email.toLowerCase() === "saboorezz@gmail.com") {
- document.querySelectorAll(".admin-only").forEach(el => el.classList.remove("hidden"));
- loadAdminPanel();
- }
- }
- loadMilestones();
- });
- loadStore();
- listenChat();
- } else {
- document.getElementById("auth-container").classList.remove("hidden");
- document.getElementById("app-container").classList.add("hidden");
- }
+    onSnapshot(doc(db, "settings", "casino"), (docSnap) => {
+      if (docSnap.exists()) {
+        globalSettings = docSnap.data();
+      } else {
+        setDoc(doc(db, "settings", "casino"), { housePool: 10000 });
+      }
+    });
+
+    onSnapshot(doc(db, "users", user.uid), async (docSnap) => {
+      if (docSnap.exists()) {
+        userData = docSnap.data();
+        await checkMilestoneReset(user.uid, userData);
+
+        document.getElementById("display-user").innerText = userData.username;
+        document.getElementById("display-balance").innerText = userData.balance;
+
+        if (userData.isAdmin || currentUser.email.toLowerCase() === "saboorezz@gmail.com") {
+          document.querySelectorAll(".admin-only").forEach(el => el.classList.remove("hidden"));
+          loadAdminPanel();
+        }
+
+        loadMilestones();
+      }
+    });
+
+    loadStore();
+    listenChat();
+    loadMilestones();
+  } else {
+    document.getElementById("auth-container").classList.remove("hidden");
+    document.getElementById("app-container").classList.add("hidden");
+  }
 });
 
 // --- TAB NAVIGATION ---
 document.querySelectorAll(".tab-btn").forEach(btn => {
- btn.addEventListener("click", () => {
- document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
- document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
- btn.classList.add("active");
- document.getElementById(btn.dataset.tab).classList.add("active");
- });
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.tab).classList.add("active");
+  });
 });
 
 // --- GAME LOBBY ROUTING ---
 window.openGame = (gameId) => {
- document.getElementById("games-lobby").classList.add("hidden");
- document.querySelectorAll(".game-stage").forEach(el => el.classList.add("hidden"));
- const stage = document.getElementById(`game-stage-${gameId}`);
- if (stage) stage.classList.remove("hidden");
-}; 
+  document.getElementById("games-lobby").classList.add("hidden");
+  document.querySelectorAll(".game-stage").forEach(el => el.classList.add("hidden"));
+  
+  const stage = document.getElementById(`game-stage-${gameId}`);
+  if (stage) stage.classList.remove("hidden");
+};
 
 window.closeGame = () => {
- document.querySelectorAll(".game-stage").forEach(el => el.classList.add("hidden"));
- document.getElementById("games-lobby").classList.remove("hidden");
+  document.querySelectorAll(".game-stage").forEach(el => el.classList.add("hidden"));
+  document.getElementById("games-lobby").classList.remove("hidden");
 };
 
 // --- 3D ANIMATED COINFLIP ---
 window.play3DCoinflip = async (choice) => {
- const betInput = document.getElementById("coinflip-bet");
- const bet = parseInt(betInput.value);
- const resultText = document.getElementById("coinflip-result");
- const coin = document.getElementById("coin");
- if (isNaN(bet) || bet <= 0) {
- return alert("Please enter a valid bet amount!");
- }
- if (bet > userData.balance) {
- return alert("Insufficient balance!");
- }
- coin.style.transition = "none";
- coin.className = "coin";
- void coin.offsetWidth;
- coin.style.transition = "transform 3.3s cubic-bezier(0.15, 0.85, 0.35, 1.2)";
- const potentialWin = bet;
- const winChance = getAdjustedWinChance(bet, potentialWin, globalSettings.housePool);
- const won = Math.random() < winChance;  
- let outcome = won ? choice : (choice === "heads" ? "tails" : "heads");
- const newBalance = won ? userData.balance + bet : userData.balance - bet;
- const poolChange = won ? -bet : bet;
- coin.classList.add(outcome === "heads" ? "animate-heads" : "animate-tails");
- resultText.innerText = "Flipping...";
- resultText.className = "game-status-text text-blue";
- 
- setTimeout(async () => {
- await runTransaction(db, async (t) => {
- const userRef = doc(db, "users", currentUser.uid);
- const settingsRef = doc(db, "settings", "casino");
- const currentSettingsDoc = await t.get(settingsRef);
- const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
- t.update(userRef, { 
- balance: newBalance,
- wagered: increment(bet)
- });
- t.update(settingsRef, { housePool: currentPool + poolChange });
- });
- if (won) {
- resultText.innerText = `🎉 You Won! Flipped ${outcome.toUpperCase()}. (+${bet} coins)`;
- resultText.className = "game-status-text text-green";
- } else {  
- resultText.innerText = `❌ You Lost! Flipped ${outcome.toUpperCase()}. (-${bet} coins)`;
- resultText.className = "game-status-text text-red";
- }
- }, 3000);
+  const betInput = document.getElementById("coinflip-bet");
+  const bet = parseInt(betInput.value);
+  const resultText = document.getElementById("coinflip-result");
+  const coin = document.getElementById("coin");
+
+  if (isNaN(bet) || bet <= 0) {
+    return alert("Please enter a valid bet amount!");
+  }
+  if (bet > userData.balance) {
+    return alert("Insufficient balance!");
+  }
+
+  coin.style.transition = "none";
+  coin.className = "coin";
+  void coin.offsetWidth;
+  coin.style.transition = "transform 3.3s cubic-bezier(0.15, 0.85, 0.35, 1.2)";
+
+  const potentialWin = bet;
+  const winChance = getAdjustedWinChance(bet, potentialWin, globalSettings.housePool);
+  const won = Math.random() < winChance;
+  
+  let outcome = won ? choice : (choice === "heads" ? "tails" : "heads");
+  const newBalance = won ? userData.balance + bet : userData.balance - bet;
+  const poolChange = won ? -bet : bet;
+
+  coin.classList.add(outcome === "heads" ? "animate-heads" : "animate-tails");
+  resultText.innerText = "Flipping...";
+  resultText.className = "game-status-text text-blue";
+
+  setTimeout(async () => {
+    await runTransaction(db, async (t) => {
+      const userRef = doc(db, "users", currentUser.uid);
+      const settingsRef = doc(db, "settings", "casino");
+      
+      const currentSettingsDoc = await t.get(settingsRef);
+      const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
+
+      t.update(userRef, { 
+        balance: newBalance,
+        wagered: increment(bet)
+      });
+      t.update(settingsRef, { housePool: currentPool + poolChange });
+    });
+
+    if (won) {
+      resultText.innerText = `🎉 You Won! Flipped ${outcome.toUpperCase()}. (+${bet} coins)`;
+      resultText.className = "game-status-text text-green";
+    } else {
+      resultText.innerText = `❌ You Lost! Flipped ${outcome.toUpperCase()}. (-${bet} coins)`;
+      resultText.className = "game-status-text text-red";
+    }
+  }, 3000);
 };
 
 // --- DICE GAME ---
 window.playDice = async () => {
- const bet = parseInt(document.getElementById("dice-bet").value);
- const target = document.getElementById("dice-target").value;
- const resultText = document.getElementById("dice-result");
- const display = document.getElementById("dice-display");
- if (isNaN(bet) || bet <= 0) {
- resultText.innerText = "Please enter a valid bet amount!";
- resultText.className = "game-status-text text-red";
- return;
- }
- if (bet > userData.balance) {
- resultText.innerText = "Insufficient balance!";
- resultText.className = "game-status-text text-red";
- return;
- }
- const multiplier = target === "exact6" ? 5 : 2;
- const potentialProfit = bet * (multiplier - 1);
- const winChance = getAdjustedWinChance(bet, potentialProfit, globalSettings.housePool);
- const won = Math.random() < winChance;  
- let validNumbers = [];
- let invalidNumbers = [];
- if (target === "under3") {
- validNumbers = [1, 2];
- invalidNumbers = [3, 4, 5, 6];
- } else if (target === "over3") {
- validNumbers = [4, 5, 6];
- invalidNumbers = [1, 2, 3];
- } else if (target === "exact6") {
- validNumbers = [6];
- invalidNumbers = [1, 2, 3, 4, 5];
- }
- const pool = won ? validNumbers : invalidNumbers;
- const roll = pool[Math.floor(Math.random() * pool.length)];
- const diceEmojis = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
- display.innerText = diceEmojis[roll];
- 
- if (won) {
- const profit = bet * (multiplier - 1);
- await runTransaction(db, async (t) => {
- const userRef = doc(db, "users", currentUser.uid);
- const settingsRef = doc(db, "settings", "casino");
- const currentSettingsDoc = await t.get(settingsRef);
- const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;  
- t.update(userRef, { 
- balance: userData.balance + profit,
- wagered: increment(bet)
- });
- t.update(settingsRef, { housePool: currentPool - profit });
- });
- resultText.innerText = `Rolled ${roll}! You won ${profit} coins! 🎉`;
- resultText.className = "game-status-text text-green";
- } else {
- await runTransaction(db, async (t) => {
- const userRef = doc(db, "users", currentUser.uid);
- const settingsRef = doc(db, "settings", "casino");
- const currentSettingsDoc = await t.get(settingsRef);
- const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
- t.update(userRef, { 
- balance: userData.balance - bet,
- wagered: increment(bet)
- });
- t.update(settingsRef, { housePool: currentPool + bet });
- });
- resultText.innerText = `Rolled ${roll}. You lost ${bet} coins.`;
- resultText.className = "game-status-text text-red";
- }
+  const bet = parseInt(document.getElementById("dice-bet").value);
+  const target = document.getElementById("dice-target").value;
+  const resultText = document.getElementById("dice-result");
+  const display = document.getElementById("dice-display");
+
+  if (isNaN(bet) || bet <= 0) {
+    resultText.innerText = "Please enter a valid bet amount!";
+    resultText.className = "game-status-text text-red";
+    return;
+  }
+  if (bet > userData.balance) {
+    resultText.innerText = "Insufficient balance!";
+    resultText.className = "game-status-text text-red";
+    return;
+  }
+
+  const multiplier = target === "exact6" ? 5 : 2;
+  const potentialProfit = bet * (multiplier - 1);
+  const winChance = getAdjustedWinChance(bet, potentialProfit, globalSettings.housePool);
+  const won = Math.random() < winChance;
+
+  let validNumbers = [];
+  let invalidNumbers = [];
+
+  if (target === "under3") {
+    validNumbers = [1, 2];
+    invalidNumbers = [3, 4, 5, 6];
+  } else if (target === "over3") {
+    validNumbers = [4, 5, 6];
+    invalidNumbers = [1, 2, 3];
+  } else if (target === "exact6") {
+    validNumbers = [6];
+    invalidNumbers = [1, 2, 3, 4, 5];
+  }
+
+  const pool = won ? validNumbers : invalidNumbers;
+  const roll = pool[Math.floor(Math.random() * pool.length)];
+
+  const diceEmojis = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+  display.innerText = diceEmojis[roll];
+
+  if (won) {
+    const profit = bet * (multiplier - 1);
+    await runTransaction(db, async (t) => {
+      const userRef = doc(db, "users", currentUser.uid);
+      const settingsRef = doc(db, "settings", "casino");
+      const currentSettingsDoc = await t.get(settingsRef);
+      const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
+
+      t.update(userRef, { 
+        balance: userData.balance + profit,
+        wagered: increment(bet)
+      });
+      t.update(settingsRef, { housePool: currentPool - profit });
+    });
+    resultText.innerText = `Rolled ${roll}! You won ${profit} coins! 🎉`;
+    resultText.className = "game-status-text text-green";
+  } else {
+    await runTransaction(db, async (t) => {
+      const userRef = doc(db, "users", currentUser.uid);
+      const settingsRef = doc(db, "settings", "casino");
+      const currentSettingsDoc = await t.get(settingsRef);
+      const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
+
+      t.update(userRef, { 
+        balance: userData.balance - bet,
+        wagered: increment(bet)
+      });
+      t.update(settingsRef, { housePool: currentPool + bet });
+    });
+    resultText.innerText = `Rolled ${roll}. You lost ${bet} coins.`;
+    resultText.className = "game-status-text text-red";
+  }
 };
 
 // --- BLACKJACK GAME ---
 let bjDeck = [], playerHand = [], dealerHand = [], bjBetAmount = 0, bjIsForcedLoss = false;
 
 function createDeck() {
- const suits = ['♠', '♥', '♦', '♣'], values = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
- let deck = [];
- suits.forEach(s => values.forEach(v => deck.push({ value: v, suit: s })));
- return deck.sort(() => Math.random() - 0.5);
+  const suits = ['♠', '♥', '♦', '♣'], values = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+  let deck = [];
+  suits.forEach(s => values.forEach(v => deck.push({ value: v, suit: s })));
+  return deck.sort(() => Math.random() - 0.5);
 }
 
 function calculateHand(hand) {
- let score = 0, aces = 0;
- hand.forEach(card => {
- if (['J','Q','K'].includes(card.value)) score += 10;
- else if (card.value === 'A') { score += 11; aces += 1; }
- else score += parseInt(card.value);
- });
- while (score > 21 && aces > 0) { score -= 10; aces -= 1; }
- return score;
+  let score = 0, aces = 0;
+  hand.forEach(card => {
+    if (['J','Q','K'].includes(card.value)) score += 10;
+    else if (card.value === 'A') { score += 11; aces += 1; }
+    else score += parseInt(card.value);
+  });
+  while (score > 21 && aces > 0) { score -= 10; aces -= 1; }
+  return score;
 }
 
 function renderBJ(showDealer = false) {
- document.getElementById('bj-player-hand').innerText = playerHand.map(c => c.value + c.suit).join(' ');
- document.getElementById('bj-player-score').innerText = `(${calculateHand(playerHand)})`;
- if (showDealer) {
- document.getElementById('bj-dealer-hand').innerText = dealerHand.map(c => c.value + c.suit).join(' ');  
- document.getElementById('bj-dealer-score').innerText = `(${calculateHand(dealerHand)})`;
- } else {
- document.getElementById('bj-dealer-hand').innerText = dealerHand[0].value + dealerHand[0].suit + ' 🂠';
- document.getElementById('bj-dealer-score').innerText = '';
- }
+  document.getElementById('bj-player-hand').innerText = playerHand.map(c => c.value + c.suit).join(' ');
+  document.getElementById('bj-player-score').innerText = `(${calculateHand(playerHand)})`;
+
+  if (showDealer) {
+    document.getElementById('bj-dealer-hand').innerText = dealerHand.map(c => c.value + c.suit).join(' ');
+    document.getElementById('bj-dealer-score').innerText = `(${calculateHand(dealerHand)})`;
+  } else {
+    document.getElementById('bj-dealer-hand').innerText = dealerHand[0].value + dealerHand[0].suit + ' 🂠';
+    document.getElementById('bj-dealer-score').innerText = '';
+  }
 }
 
 function endBJ(msg, colorClass) {
- const res = document.getElementById('bj-result');
- res.innerText = msg;
- res.className = `game-status-text ${colorClass}`;
- document.getElementById('bj-setup-btns').classList.remove('hidden');
- document.getElementById('bj-action-btns').classList.add('hidden');
+  const res = document.getElementById('bj-result');
+  res.innerText = msg;
+  res.className = `game-status-text ${colorClass}`;
+  document.getElementById('bj-setup-btns').classList.remove('hidden');
+  document.getElementById('bj-action-btns').classList.add('hidden');
 }
 
 window.startBlackjack = async () => {
- bjBetAmount = parseInt(document.getElementById('bj-bet').value);
- const resultText = document.getElementById('bj-result');
- if (isNaN(bjBetAmount) || bjBetAmount <= 0) {
- resultText.innerText = "Please enter a valid bet amount!";
- resultText.className = "game-status-text text-red";
- return;
- }
- if (bjBetAmount > userData.balance) {
- resultText.innerText = "Insufficient balance!";
- resultText.className = "game-status-text text-red";
- return;  
- }
- const potentialWin = bjBetAmount;
- const winChance = getAdjustedWinChance(bjBetAmount, potentialWin, globalSettings.housePool);
- bjIsForcedLoss = Math.random() >= winChance;
- await updateDoc(doc(db, "users", currentUser.uid), {
- wagered: increment(bjBetAmount)
- });
- bjDeck = createDeck();
- 
- if (bjIsForcedLoss) {
- playerHand = [{ value: '10', suit: '♠' }, { value: '5', suit: '♥' }];
- dealerHand = [{ value: '10', suit: '♦' }, { value: '9', suit: '♣' }];
- } else {
- playerHand = [bjDeck.pop(), bjDeck.pop()];
- dealerHand = [bjDeck.pop(), bjDeck.pop()];
- }
- document.getElementById('bj-setup-btns').classList.add('hidden');
- document.getElementById('bj-action-btns').classList.remove('hidden');
- resultText.innerText = "";
- renderBJ();
- if (calculateHand(playerHand) === 21) {
- const payout = Math.floor(bjBetAmount * 1.5);  
- await runTransaction(db, async (t) => {
- const userRef = doc(db, "users", currentUser.uid);
- const settingsRef = doc(db, "settings", "casino");
- const currentSettingsDoc = await t.get(settingsRef);
- const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
- t.update(userRef, { balance: userData.balance + payout });
- t.update(settingsRef, { housePool: currentPool - payout });
- });
- endBJ(`Blackjack! You won ${payout} coins! 🎉`, 'text-green');
- }
+  bjBetAmount = parseInt(document.getElementById('bj-bet').value);
+  const resultText = document.getElementById('bj-result');
+
+  if (isNaN(bjBetAmount) || bjBetAmount <= 0) {
+    resultText.innerText = "Please enter a valid bet amount!";
+    resultText.className = "game-status-text text-red";
+    return;
+  }
+  if (bjBetAmount > userData.balance) {
+    resultText.innerText = "Insufficient balance!";
+    resultText.className = "game-status-text text-red";
+    return;
+  }
+
+  const potentialWin = bjBetAmount;
+  const winChance = getAdjustedWinChance(bjBetAmount, potentialWin, globalSettings.housePool);
+  bjIsForcedLoss = Math.random() >= winChance;
+
+  await updateDoc(doc(db, "users", currentUser.uid), {
+    wagered: increment(bjBetAmount)
+  });
+
+  bjDeck = createDeck();
+  
+  if (bjIsForcedLoss) {
+    playerHand = [{ value: '10', suit: '♠' }, { value: '5', suit: '♥' }];
+    dealerHand = [{ value: '10', suit: '♦' }, { value: '9', suit: '♣' }];
+  } else {
+    playerHand = [bjDeck.pop(), bjDeck.pop()];
+    dealerHand = [bjDeck.pop(), bjDeck.pop()];
+  }
+
+  document.getElementById('bj-setup-btns').classList.add('hidden');
+  document.getElementById('bj-action-btns').classList.remove('hidden');
+  resultText.innerText = "";
+
+  renderBJ();
+
+  if (calculateHand(playerHand) === 21) {
+    const payout = Math.floor(bjBetAmount * 1.5);
+    await runTransaction(db, async (t) => {
+      const userRef = doc(db, "users", currentUser.uid);
+      const settingsRef = doc(db, "settings", "casino");
+      const currentSettingsDoc = await t.get(settingsRef);
+      const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
+
+      t.update(userRef, { balance: userData.balance + payout });
+      t.update(settingsRef, { housePool: currentPool - payout });
+    });
+    endBJ(`Blackjack! You won ${payout} coins! 🎉`, 'text-green');
+  }
 };
 
 window.hitBlackjack = async () => {
- if (bjIsForcedLoss && calculateHand(playerHand) >= 15) {
- playerHand.push({ value: '10', suit: '♠' });
- } else {
- playerHand.push(bjDeck.pop());
- }
- renderBJ();
- 
- if (calculateHand(playerHand) > 21) {
- await runTransaction(db, async (t) => {
- const userRef = doc(db, "users", currentUser.uid);
- const settingsRef = doc(db, "settings", "casino");
- const currentSettingsDoc = await t.get(settingsRef);
- const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;  
- t.update(userRef, { balance: userData.balance - bjBetAmount });
- t.update(settingsRef, { housePool: currentPool + bjBetAmount });
- });
- endBJ(`Bust! You lost ${bjBetAmount} coins.`, 'text-red');
- }
+  if (bjIsForcedLoss && calculateHand(playerHand) >= 15) {
+    playerHand.push({ value: '10', suit: '♠' });
+  } else {
+    playerHand.push(bjDeck.pop());
+  }
+  
+  renderBJ();
+  
+  if (calculateHand(playerHand) > 21) {
+    await runTransaction(db, async (t) => {
+      const userRef = doc(db, "users", currentUser.uid);
+      const settingsRef = doc(db, "settings", "casino");
+      const currentSettingsDoc = await t.get(settingsRef);
+      const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
+
+      t.update(userRef, { balance: userData.balance - bjBetAmount });
+      t.update(settingsRef, { housePool: currentPool + bjBetAmount });
+    });
+    endBJ(`Bust! You lost ${bjBetAmount} coins.`, 'text-red');
+  }
 };
 
 window.standBlackjack = async () => {
- while (calculateHand(dealerHand) < 17) {
- dealerHand.push(bjDeck.pop());
- }
- renderBJ(true);
- const pScore = calculateHand(playerHand), dScore = calculateHand(dealerHand);
- 
- if (dScore > 21 || pScore > dScore) {
- await runTransaction(db, async (t) => {
- const userRef = doc(db, "users", currentUser.uid);
- const settingsRef = doc(db, "settings", "casino");
- const currentSettingsDoc = await t.get(settingsRef);
- const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
- t.update(userRef, { balance: userData.balance + bjBetAmount });
- t.update(settingsRef, { housePool: currentPool - bjBetAmount });
- });
- endBJ(`You win ${bjBetAmount} coins! 🎉`, 'text-green');
- } else if (pScore === dScore) {  
- endBJ(`Push! Your bet was returned.`, 'text-blue');
- } else {
- await runTransaction(db, async (t) => {
- const userRef = doc(db, "users", currentUser.uid);
- const settingsRef = doc(db, "settings", "casino");
- const currentSettingsDoc = await t.get(settingsRef);
- const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
- t.update(userRef, { balance: userData.balance - bjBetAmount });
- t.update(settingsRef, { housePool: currentPool + bjBetAmount });
- });
- endBJ(`Dealer wins. You lost ${bjBetAmount} coins.`, 'text-red');
- }
+  while (calculateHand(dealerHand) < 17) {
+    dealerHand.push(bjDeck.pop());
+  }
+  renderBJ(true);
+
+  const pScore = calculateHand(playerHand), dScore = calculateHand(dealerHand);
+  
+  if (dScore > 21 || pScore > dScore) {
+    await runTransaction(db, async (t) => {
+      const userRef = doc(db, "users", currentUser.uid);
+      const settingsRef = doc(db, "settings", "casino");
+      const currentSettingsDoc = await t.get(settingsRef);
+      const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
+
+      t.update(userRef, { balance: userData.balance + bjBetAmount });
+      t.update(settingsRef, { housePool: currentPool - bjBetAmount });
+    });
+    endBJ(`You win ${bjBetAmount} coins! 🎉`, 'text-green');
+  } else if (pScore === dScore) {
+    endBJ(`Push! Your bet was returned.`, 'text-blue');
+  } else {
+    await runTransaction(db, async (t) => {
+      const userRef = doc(db, "users", currentUser.uid);
+      const settingsRef = doc(db, "settings", "casino");
+      const currentSettingsDoc = await t.get(settingsRef);
+      const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
+
+      t.update(userRef, { balance: userData.balance - bjBetAmount });
+      t.update(settingsRef, { housePool: currentPool + bjBetAmount });
+    });
+    endBJ(`Dealer wins. You lost ${bjBetAmount} coins.`, 'text-red');
+  }
 };
 
 // --- WAGER MILESTONES ---
 function loadMilestones() {
- const container = document.getElementById("milestone-rewards-list");
- if (!container || !userData) return;
- const milestones = [
- { id: 1, target: 100, reward: 5 },
- { id: 2, target: 500, reward: 10 },
- { id: 3, target: 1500, reward: 30 },
- { id: 4, target: 3000, reward: 70 },
- { id: 5, target: 5000, reward: 150 }
- ];  
- const wagered = userData?.wagered || 0;
- const claimedMilestones = Array.isArray(userData?.claimedMilestones) ? userData.claimedMilestones : [];
- container.innerHTML = "";
- 
- milestones.forEach((m) => {
- const progress = Math.min(wagered, m.target);
- const percentage = Math.floor((progress / m.target) * 100);
- const isCompleted = wagered >= m.target;
- const isClaimed = claimedMilestones.includes(m.id);
- const card = document.createElement("div");
- card.className = "milestone-card";
- card.style.cssText = "margin-bottom: 16px; padding: 16px; background: #111827; border-radius: 8px; border: 1px solid #1f2937;";
- 
- let buttonHtml = '';
- if (isClaimed) {
- buttonHtml = `<button class="btn-game" style="background: #1f2937; color: #9ca3af; cursor: not-allowed; width: 100%; padding: 8px; border: none; border-radius: 4px;" disabled>Claimed</button>`;
- } else if (isCompleted) {
- buttonHtml = `<button class="btn-game" style="background: #059669; color: #fff; cursor: pointer; width: 100%; padding: 8px; border: none; border-radius: 4px;" onclick="claimMilestone(${m.id}, ${m.reward})">Claim</button>`;
- } else {
- buttonHtml = `<button class="btn-game" style="background: #374151; color: #fff; cursor: not-allowed; width: 100%; padding: 8px; border: none; border-radius: 4px;" disabled>Locked</button>`;
- }  
- 
- card.innerHTML = `
- <div class="milestone-info" style="margin-bottom: 12px;">
- <h4 style="color: #fff; margin-bottom: 4px; font-size: 1rem;">Milestone ${m.id}: Wager ${m.target} Coins</h4>
- <p style="color: #9ca3af; font-size: 0.85rem; margin-bottom: 8px;">Reward: <strong class="text-green">+${m.reward} Coins</strong></p>
- <div style="background: #1f2937; height: 8px; border-radius: 4px; overflow: hidden; width: 100%; margin-bottom: 6px;">
- <div style="background: #3b82f6; width: ${percentage}%; height: 100%; transition: width 0.3s;"></div>
- </div>
- <span style="font-size: 0.75rem; color: #9ca3af; display: inline-block;">Progress: ${progress} / ${m.target} (${percentage}%)</span>
- </div>
- <div class="milestone-btn-container">
- ${buttonHtml}
- </div>
- `;
- container.appendChild(card);
- });
+  const container = document.getElementById("milestone-rewards-list");
+  if (!container || !userData) return;
+
+  const milestones = [
+    { id: 1, target: 100, reward: 5 },
+    { id: 2, target: 500, reward: 10 },
+    { id: 3, target: 1500, reward: 30 },
+    { id: 4, target: 3000, reward: 70 },
+    { id: 5, target: 5000, reward: 150 }
+  ];
+
+  const wagered = userData?.wagered || 0;
+  const claimedMilestones = Array.isArray(userData?.claimedMilestones) ? userData.claimedMilestones : [];
+
+  container.innerHTML = "";
+  milestones.forEach((m) => {
+    const progress = Math.min(wagered, m.target);
+    const percentage = Math.floor((progress / m.target) * 100);
+    const isCompleted = wagered >= m.target;
+    const isClaimed = claimedMilestones.includes(m.id);
+
+    const card = document.createElement("div");
+    card.className = "milestone-card";
+    card.style.cssText = "margin-bottom: 16px; padding: 16px; background: #111827; border-radius: 8px; border: 1px solid #1f2937;";
+
+    let buttonHtml = '';
+    if (isClaimed) {
+      buttonHtml = `<button class="btn-game" style="background: #1f2937; color: #9ca3af; cursor: not-allowed; width: 100%; padding: 8px; border: none; border-radius: 4px;" disabled>Claimed</button>`;
+    } else if (isCompleted) {
+      buttonHtml = `<button class="btn-game" style="background: #059669; color: #fff; cursor: pointer; width: 100%; padding: 8px; border: none; border-radius: 4px;" onclick="claimMilestone(${m.id}, ${m.reward})">Claim</button>`;
+    } else {
+      buttonHtml = `<button class="btn-game" style="background: #374151; color: #fff; cursor: not-allowed; width: 100%; padding: 8px; border: none; border-radius: 4px;" disabled>Locked</button>`;
+    }
+
+    card.innerHTML = `
+      <div class="milestone-info" style="margin-bottom: 12px;">
+        <h4 style="color: #fff; margin-bottom: 4px; font-size: 1rem;">Milestone ${m.id}: Wager ${m.target} Coins</h4>
+        <p style="color: #9ca3af; font-size: 0.85rem; margin-bottom: 8px;">Reward: <strong class="text-green">+${m.reward} Coins</strong></p>
+        
+        <div style="background: #1f2937; height: 8px; border-radius: 4px; overflow: hidden; width: 100%; margin-bottom: 6px;">
+          <div style="background: #3b82f6; width: ${percentage}%; height: 100%; transition: width 0.3s;"></div>
+        </div>
+        <span style="font-size: 0.75rem; color: #9ca3af; display: inline-block;">Progress: ${progress} / ${m.target} (${percentage}%)</span>
+      </div>
+      <div class="milestone-btn-container">
+        ${buttonHtml}
+      </div>
+    `;
+
+    container.appendChild(card);
+  });
 }
 
+// --- CLAIM MILESTONE HANDLER ---
 window.claimMilestone = async (milestoneId, rewardAmount) => {
- if (!currentUser || !userData) return;  
- const claimedMilestones = Array.isArray(userData.claimedMilestones) ? userData.claimedMilestones : [];
- if (claimedMilestones.includes(milestoneId)) {
- return alert("You have already claimed this milestone!");
- }
- try {
- await updateDoc(doc(db, "users", currentUser.uid), {
- balance: increment(rewardAmount),
- claimedMilestones: [...claimedMilestones, milestoneId]
- });
- alert(`🎉 Successfully claimed ${rewardAmount} coins!`);
- } catch (err) {
- alert(err.message);
- }
+  if (!currentUser || !userData) return;
+
+  const claimedMilestones = Array.isArray(userData.claimedMilestones) ? userData.claimedMilestones : [];
+  if (claimedMilestones.includes(milestoneId)) {
+    return alert("You have already claimed this milestone!");
+  }
+
+  try {
+    await updateDoc(doc(db, "users", currentUser.uid), {
+      balance: increment(rewardAmount),
+      claimedMilestones: [...claimedMilestones, milestoneId]
+    });
+    alert(`🎉 Successfully claimed ${rewardAmount} coins!`);
+  } catch (err) {
+    alert(err.message);
+  }
 };
 
 // --- CHAT & TIPPING ---
@@ -466,400 +511,438 @@ const chatInput = document.getElementById("chat-input");
 document.getElementById("btn-send-chat")?.addEventListener("click", sendMessage);
 
 async function sendMessage() {
- const text = chatInput.value.trim();
- if (!text) return;
- if (text.toLowerCase() === "/tip") {
- chatInput.value = "";
- document.getElementById("tip-modal").classList.remove("hidden");
- return;  
- }
- await addDoc(collection(db, "chat"), {
- sender: userData.username,
- text: text,
- timestamp: new Date()
- });
- chatInput.value = "";
+  const text = chatInput.value.trim();
+  if (!text) return;
+
+  if (text.toLowerCase() === "/tip") {
+    chatInput.value = "";
+    document.getElementById("tip-modal").classList.remove("hidden");
+    return;
+  }
+
+  await addDoc(collection(db, "chat"), {
+    sender: userData.username,
+    text: text,
+    timestamp: new Date()
+  });
+  chatInput.value = "";
 }
 
 function listenChat() {
- const q = query(collection(db, "chat"), orderBy("timestamp", "asc"), limit(50));
- onSnapshot(q, (snapshot) => {
- const chatBox = document.getElementById("chat-messages");
- if (!chatBox) return;
- chatBox.innerHTML = "";
- snapshot.forEach(doc => {
- const msg = doc.data();
- chatBox.innerHTML += `<div class="chat-msg"><strong>${msg.sender}:</strong> ${msg.text}</div>`;
- });
- chatBox.scrollTop = chatBox.scrollHeight;
- });
+  const q = query(collection(db, "chat"), orderBy("timestamp", "asc"), limit(50));
+  onSnapshot(q, (snapshot) => {
+    const chatBox = document.getElementById("chat-messages");
+    if (!chatBox) return;
+    chatBox.innerHTML = "";
+    snapshot.forEach(doc => {
+      const msg = doc.data();
+      chatBox.innerHTML += `<div class="chat-msg"><strong>${msg.sender}:</strong> ${msg.text}</div>`;
+    });
+    chatBox.scrollTop = chatBox.scrollHeight;
+  });
 }
 
 document.getElementById("btn-close-tip")?.addEventListener("click", () => {
- document.getElementById("tip-modal").classList.add("hidden");
-}); 
+  document.getElementById("tip-modal").classList.add("hidden");
+});
 
 document.getElementById("btn-confirm-tip")?.addEventListener("click", async () => {
- const recipientName = document.getElementById("tip-recipient").value.trim();
- const amount = parseInt(document.getElementById("tip-amount").value);
- if (!recipientName || isNaN(amount) || amount <= 0) return alert("Invalid input!");
- const isAdmin = userData.isAdmin || currentUser.email.toLowerCase() === "saboorezz@gmail.com";
- if (!isAdmin && amount > userData.balance) {
- return alert("Not enough balance!");
- }
- try {
- await runTransaction(db, async (transaction) => {
- const q = query(collection(db, "users"), where("username", "==", recipientName));
- const snap = await getDocs(q);
- if (snap.empty) throw new Error("User not found!");
- const targetDoc = snap.docs[0];
- const targetData = targetDoc.data();
- if (!isAdmin) {
- transaction.update(doc(db, "users", currentUser.uid), { balance: userData.balance - amount });
- }
- transaction.update(doc(db, "users", targetDoc.id), { balance: targetData.balance + amount });
- });  
- alert(`Successfully tipped ${amount} coins to ${recipientName}!`);
- document.getElementById("tip-modal").classList.add("hidden");
- } catch (err) { alert(err.message); }
+  const recipientName = document.getElementById("tip-recipient").value.trim();
+  const amount = parseInt(document.getElementById("tip-amount").value);
+
+  if (!recipientName || isNaN(amount) || amount <= 0) return alert("Invalid input!");
+
+  const isAdmin = userData.isAdmin || currentUser.email.toLowerCase() === "saboorezz@gmail.com";
+
+  if (!isAdmin && amount > userData.balance) {
+    return alert("Not enough balance!");
+  }
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const q = query(collection(db, "users"), where("username", "==", recipientName));
+      const snap = await getDocs(q);
+      if (snap.empty) throw new Error("User not found!");
+
+      const targetDoc = snap.docs[0];
+      const targetData = targetDoc.data();
+
+      if (!isAdmin) {
+        transaction.update(doc(db, "users", currentUser.uid), { balance: userData.balance - amount });
+      }
+
+      transaction.update(doc(db, "users", targetDoc.id), { balance: targetData.balance + amount });
+    });
+
+    alert(`Successfully tipped ${amount} coins to ${recipientName}!`);
+    document.getElementById("tip-modal").classList.add("hidden");
+  } catch (err) { alert(err.message); }
 });
 
 // --- STORE MANAGEMENT ---
 function loadStore() {
- onSnapshot(collection(db, "store"), (snap) => {
- const container = document.getElementById("store-list");
- if (!container) return;
- container.innerHTML = "";
- 
- const isAdmin = userData && (userData.isAdmin || currentUser?.email.toLowerCase() === "saboorezz@gmail.com");
- snap.forEach(d => {
- const item = d.data();
- const card = document.createElement("div");
- card.className = "game-card store-card";
- card.style.position = "relative";
- 
- const adminActionsHTML = isAdmin ? `
- <div style="position: absolute; top: 12px; right: 12px; display: flex; gap: 8px; z-index: 5;">
- <button onclick="editStoreItemModal('${d.id}', '${item.name.replace(/'/g, "\\'")}', ${item.cost})" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Edit Item">✏️</button>
- <button onclick="deleteStoreItem('${d.id}')" style="background: none; border: none; cursor: pointer; font-size: 16px; color: red;" title="Remove Item">✖</button>
- </div>
- ` : '';
- 
- card.innerHTML = `
- ${adminActionsHTML}
- <div class="card-header">
- <h4 class="item-title" style="margin-right: 50px;">${item.name}</h4>
- <p class="item-rate">Rate: <strong class="text-blue">${item.cost} Coins</strong> / unit</p>
- </div>
- <div class="input-group">
- <input type="number" class="coin-input" placeholder="e.g. 70" min="${item.cost}">
- <button type="button" class="btn-quick-add" data-add="10">+10</button>
- <button type="button" class="btn-quick-add" data-add="50">+50</button>
- </div>
- <div class="calc-display-box hidden">
- <span class="calc-label">Calculated Output:</span>
- <div class="calc-output"></div>
- </div>
- <button class="claim-btn">Withdraw Time / Item</button>`;
- 
- const input = card.querySelector(".coin-input");
- const box = card.querySelector(".calc-display-box");
- const output = card.querySelector(".calc-output");
- const claimBtn = card.querySelector(".claim-btn");  
- 
- const calculateTime = () => {
- const coinsSpent = parseInt(input.value);
- if (isNaN(coinsSpent) || coinsSpent <= 0) {
- box.classList.add("hidden");
- return;
- }
- box.classList.remove("hidden");
- if (coinsSpent < item.cost) {
- output.innerText = `Min required: ${item.cost} coins`;
- output.className = "calc-output text-red";
- return;
- }
- const quantity = (coinsSpent / item.cost).toFixed(1);
- const isPerMin = item.name.toLowerCase().includes("per min") || item.name.toLowerCase().includes("time");
- const unitLabel = isPerMin ? "min" : "units/matches";
- output.innerText = `You get: ${quantity} ${unitLabel}`;
- output.className = "calc-output text-green";
- };
- 
- input.addEventListener("input", calculateTime);
- card.querySelectorAll(".btn-quick-add").forEach(btn => {  
- btn.addEventListener("click", () => {
- const addVal = parseInt(btn.dataset.add);
- const currentVal = parseInt(input.value) || 0;
- input.value = currentVal + addVal;
- calculateTime();
- });
- });
- 
- claimBtn.onclick = () => {
- const coinsSpent = parseInt(input.value);
- if (isNaN(coinsSpent) || coinsSpent < item.cost) {
- return alert(`Please enter at least ${item.cost} coins to proceed!`);
- }
- requestWithdraw(item.name, item.cost, coinsSpent);
- };
- container.appendChild(card);
- });
- });
+  onSnapshot(collection(db, "store"), (snap) => {
+    const container = document.getElementById("store-list");
+    if (!container) return;
+    container.innerHTML = "";
+    
+    const isAdmin = userData && (userData.isAdmin || currentUser?.email.toLowerCase() === "saboorezz@gmail.com");
+
+    snap.forEach(d => {
+      const item = d.data();
+      const card = document.createElement("div");
+      card.className = "game-card store-card";
+      card.style.position = "relative";
+      
+      const adminActionsHTML = isAdmin ? `
+        <div style="position: absolute; top: 12px; right: 12px; display: flex; gap: 8px; z-index: 5;">
+          <button onclick="editStoreItemModal('${d.id}', '${item.name.replace(/'/g, "\\'")}', ${item.cost})" 
+                  style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Edit Item">✏️</button>
+          <button onclick="deleteStoreItem('${d.id}')" 
+                  style="background: none; border: none; cursor: pointer; font-size: 16px; color: red;" title="Remove Item">✖</button>
+        </div>
+      ` : '';
+
+      card.innerHTML = `
+        ${adminActionsHTML}
+        <div class="card-header">
+          <h4 class="item-title" style="margin-right: 50px;">${item.name}</h4>
+          <p class="item-rate">Rate: <strong class="text-blue">${item.cost} Coins</strong> / unit</p>
+        </div>
+        
+        <div class="input-group">
+          <input type="number" class="coin-input" placeholder="e.g. 70" min="${item.cost}">
+          <button type="button" class="btn-quick-add" data-add="10">+10</button>
+          <button type="button" class="btn-quick-add" data-add="50">+50</button>
+        </div>
+
+        <div class="calc-display-box hidden">
+          <span class="calc-label">Calculated Output:</span>
+          <div class="calc-output"></div>
+        </div>
+
+        <button class="claim-btn">Withdraw Time / Item</button>`;
+
+      const input = card.querySelector(".coin-input");
+      const box = card.querySelector(".calc-display-box");
+      const output = card.querySelector(".calc-output");
+      const claimBtn = card.querySelector(".claim-btn");
+
+      const calculateTime = () => {
+        const coinsSpent = parseInt(input.value);
+
+        if (isNaN(coinsSpent) || coinsSpent <= 0) {
+          box.classList.add("hidden");
+          return;
+        }
+
+        box.classList.remove("hidden");
+
+        if (coinsSpent < item.cost) {
+          output.innerText = `Min required: ${item.cost} coins`;
+          output.className = "calc-output text-red";
+          return;
+        }
+
+        const quantity = (coinsSpent / item.cost).toFixed(1);
+        const isPerMin = item.name.toLowerCase().includes("per min") || item.name.toLowerCase().includes("time");
+        const unitLabel = isPerMin ? "min" : "units/matches";
+
+        output.innerText = `You get: ${quantity} ${unitLabel}`;
+        output.className = "calc-output text-green";
+      };
+
+      input.addEventListener("input", calculateTime);
+
+      card.querySelectorAll(".btn-quick-add").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const addVal = parseInt(btn.dataset.add);
+          const currentVal = parseInt(input.value) || 0;
+          input.value = currentVal + addVal;
+          calculateTime();
+        });
+      });
+
+      claimBtn.onclick = () => {
+        const coinsSpent = parseInt(input.value);
+        if (isNaN(coinsSpent) || coinsSpent < item.cost) {
+          return alert(`Please enter at least ${item.cost} coins to proceed!`);
+        }
+        requestWithdraw(item.name, item.cost, coinsSpent);
+      };
+
+      container.appendChild(card);
+    });
+  });
 }
 
 // --- ITEM MODAL HANDLERS ---
 const itemModal = document.getElementById("item-modal");
 
 document.getElementById("btn-open-add-item")?.addEventListener("click", () => {
- document.getElementById("item-modal-title").textContent = "Add Store Item";
- document.getElementById("item-modal-id").value = "";
- document.getElementById("item-modal-name").value = "";
- document.getElementById("item-modal-cost").value = "";  
- itemModal.classList.remove("hidden");
+  document.getElementById("item-modal-title").textContent = "Add Store Item";
+  document.getElementById("item-modal-id").value = "";
+  document.getElementById("item-modal-name").value = "";
+  document.getElementById("item-modal-cost").value = "";
+  itemModal.classList.remove("hidden");
 });
 
 document.getElementById("btn-close-item-modal")?.addEventListener("click", () => {
- itemModal.classList.add("hidden");
+  itemModal.classList.add("hidden");
 });
 
 window.editStoreItemModal = (id, name, cost) => {
- document.getElementById("item-modal-title").textContent = "Edit Store Item";
- document.getElementById("item-modal-id").value = id;
- document.getElementById("item-modal-name").value = name;
- document.getElementById("item-modal-cost").value = cost;
- itemModal.classList.remove("hidden");
+  document.getElementById("item-modal-title").textContent = "Edit Store Item";
+  document.getElementById("item-modal-id").value = id;
+  document.getElementById("item-modal-name").value = name;
+  document.getElementById("item-modal-cost").value = cost;
+  itemModal.classList.remove("hidden");
 };
 
 document.getElementById("btn-save-item")?.addEventListener("click", async () => {
- const oldId = document.getElementById("item-modal-id").value;
- const name = document.getElementById("item-modal-name").value.trim();
- const cost = parseInt(document.getElementById("item-modal-cost").value);
- if (!name || isNaN(cost) || cost <= 0) {
- return alert("Please enter a valid item name and cost!");
- }
- try {
- if (oldId && oldId !== name) {
- await deleteDoc(doc(db, "store", oldId));
- }
- await setDoc(doc(db, "store", name), { name, cost });  
- itemModal.classList.add("hidden");
- } catch (err) {
- alert(err.message);
- }
+  const oldId = document.getElementById("item-modal-id").value;
+  const name = document.getElementById("item-modal-name").value.trim();
+  const cost = parseInt(document.getElementById("item-modal-cost").value);
+
+  if (!name || isNaN(cost) || cost <= 0) {
+    return alert("Please enter a valid item name and cost!");
+  }
+
+  try {
+    if (oldId && oldId !== name) {
+      await deleteDoc(doc(db, "store", oldId));
+    }
+    await setDoc(doc(db, "store", name), { name, cost });
+    itemModal.classList.add("hidden");
+  } catch (err) {
+    alert(err.message);
+  }
 });
 
 window.deleteStoreItem = async (itemId) => {
- if (confirm(`Are you sure you want to delete "${itemId}"?`)) {
- try {
- await deleteDoc(doc(db, "store", itemId));
- } catch (err) {
- alert(err.message);
- }
- }
+  if (confirm(`Are you sure you want to delete "${itemId}"?`)) {
+    try {
+      await deleteDoc(doc(db, "store", itemId));
+    } catch (err) {
+      alert(err.message);
+    }
+  }
 };
 
 async function requestWithdraw(name, baseCost, totalCoinsSpent) {
- if (userData.balance < totalCoinsSpent) {
- return alert(`Not enough coins! You have ${userData.balance} coins, but tried to spend ${totalCoinsSpent}.`);
- }
- const quantity = (totalCoinsSpent / baseCost).toFixed(1);
- const isPerMin = name.toLowerCase().includes("per min") || name.toLowerCase().includes("time");
- const unitLabel = isPerMin ? "min" : "units/matches";
- const displayDetails = `${quantity} ${unitLabel} (${totalCoinsSpent} coins spent)`;
- try {
- await runTransaction(db, async (t) => {  
- const userRef = doc(db, "users", currentUser.uid);
- const uDoc = await t.get(userRef);
- if (uDoc.data().balance < totalCoinsSpent) throw new Error("Not enough coins!");
- t.update(userRef, { balance: uDoc.data().balance - totalCoinsSpent });
- t.set(doc(collection(db, "withdrawals")), {
- userId: currentUser.uid,
- username: userData.username,
- itemName: name,
- cost: totalCoinsSpent,
- details: displayDetails,
- status: "pending",
- timestamp: new Date()
- });
- });
- alert(`Success! Withdrawal request submitted for ${displayDetails}. Sent to Admin for approval.`);
- } catch (err) {
- alert(err.message);
- }
+  if (userData.balance < totalCoinsSpent) {
+    return alert(`Not enough coins! You have ${userData.balance} coins, but tried to spend ${totalCoinsSpent}.`);
+  }
+
+  const quantity = (totalCoinsSpent / baseCost).toFixed(1);
+  const isPerMin = name.toLowerCase().includes("per min") || name.toLowerCase().includes("time");
+  const unitLabel = isPerMin ? "min" : "units/matches";
+  const displayDetails = `${quantity} ${unitLabel} (${totalCoinsSpent} coins spent)`;
+
+  try {
+    await runTransaction(db, async (t) => {
+      const userRef = doc(db, "users", currentUser.uid);
+      const uDoc = await t.get(userRef);
+      if (uDoc.data().balance < totalCoinsSpent) throw new Error("Not enough coins!");
+
+      t.update(userRef, { balance: uDoc.data().balance - totalCoinsSpent });
+      t.set(doc(collection(db, "withdrawals")), {
+        userId: currentUser.uid,
+        username: userData.username,
+        itemName: name,
+        cost: totalCoinsSpent,
+        details: displayDetails,
+        status: "pending",
+        timestamp: new Date()
+      });
+    });
+
+    alert(`Success! Withdrawal request submitted for ${displayDetails}. Sent to Admin for approval.`);
+  } catch (err) {
+    alert(err.message);
+  }
 }
 
 // --- ADMIN PANEL FUNCTIONS ---
 function loadAdminPanel() {
- let poolContainer = document.getElementById("admin-house-pool-container");
- if (!poolContainer) {
- const adminPanelEl = document.querySelector("#admin-panel") || document.querySelector(".admin-only");
- if (adminPanelEl) {  
- poolContainer = document.createElement("div");
- poolContainer.id = "admin-house-pool-container";
- poolContainer.style.cssText = "margin-bottom: 16px; padding: 12px; background: #1f2937; border-radius: 6px; border: 1px solid #374151;";
- adminPanelEl.prepend(poolContainer);
- }
- }
- if (poolContainer) {
- poolContainer.innerHTML = `
- <h4 style="color: #fff; margin-bottom: 8px; font-size: 1rem;">Casino Vault / House Pool</h4>
- <p style="color: #9ca3af; font-size: 0.85rem; margin-bottom: 8px;">Current Pool Available: <strong class="text-green" id="admin-pool-display">${globalSettings.housePool} Coins</strong></p>
- <div style="display: flex; gap: 8px;">
- <input type="number" id="admin-pool-input" placeholder="Set new pool amount" style="padding: 4px 8px; background: #111827; border: 1px solid #374151; color: #fff; border-radius: 4px; flex: 1;">
- <button onclick="updateHousePool()" style="background: #2563eb; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Update Pool</button>
- </div>
- `;
- }
- 
- onSnapshot(collection(db, "users"), (snap) => {
- const list = document.getElementById("admin-user-list");
- if (!list) return;
- list.innerHTML = "";  
- snap.forEach(d => {
- const u = d.data();
- const uid = d.id;
- list.innerHTML += `
- <div class="user-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:#111827; padding:8px 12px; border-radius:6px;">
- <span style="cursor:pointer;" onclick="viewUserStats('${uid}', '${u.username.replace(/'/g, "\\'")}', '${u.email}', ${u.balance}, ${u.wagered || 0}, '${encodeURIComponent(JSON.stringify(u.claimedMilestones || []))}')">
- <strong style="color:#3b82f6; text-decoration:underline;">${u.username}</strong> (${u.email}) - <strong>${u.balance} Coins</strong>
- </span>
- <div style="display:flex; gap:6px;">
- <button onclick="openAdminTip('${u.username.replace(/'/g, "\\'")}')" style="background:#2563eb; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">Tip</button>
- <button onclick="deductUserBalance('${uid}', '${u.username.replace(/'/g, "\\'")}', ${u.balance})" style="background:#dc2626; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">Deduct</button>
- </div>
- </div>`;
- });
- });
+  let poolContainer = document.getElementById("admin-house-pool-container");
+  if (!poolContainer) {
+    const adminPanelEl = document.querySelector("#admin-panel") || document.querySelector(".admin-only");
+    if (adminPanelEl) {
+      poolContainer = document.createElement("div");
+      poolContainer.id = "admin-house-pool-container";
+      poolContainer.style.cssText = "margin-bottom: 16px; padding: 12px; background: #1f2937; border-radius: 6px; border: 1px solid #374151;";
+      adminPanelEl.prepend(poolContainer);
+    }
+  }
 
- onSnapshot(collection(db, "withdrawals"), (snap) => {
- const list = document.getElementById("admin-withdraw-list");
- if (!list) return;
- list.innerHTML = "";
- snap.forEach(d => {  
- const w = d.data();
- if (w.status === "pending") {
- const itemInfo = w.details ? w.details : `${w.itemName} (${w.cost}c)`;
- list.innerHTML += `
- <div class="req-row" style="display:flex; justify-content:space-between; margin-bottom:8px;">
- <span><strong>${w.username}</strong> requested <strong>${itemInfo}</strong></span>
- <div>
- <button onclick="approveWithdraw('${d.id}')">Approve</button>
- <button class="btn-danger" onclick="rejectWithdraw('${d.id}', '${w.userId}', ${w.cost})">Reject & Refund</button>
- </div>
- </div>`;
- }
- });
- });
+  if (poolContainer) {
+    poolContainer.innerHTML = `
+      <h4 style="color: #fff; margin-bottom: 8px; font-size: 1rem;">Casino Vault / House Pool</h4>
+      <p style="color: #9ca3af; font-size: 0.85rem; margin-bottom: 8px;">Current Pool Available: <strong class="text-green" id="admin-pool-display">${globalSettings.housePool} Coins</strong></p>
+      <div style="display: flex; gap: 8px;">
+        <input type="number" id="admin-pool-input" placeholder="Set new pool amount" style="padding: 4px 8px; background: #111827; border: 1px solid #374151; color: #fff; border-radius: 4px; flex: 1;">
+        <button onclick="updateHousePool()" style="background: #2563eb; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Update Pool</button>
+      </div>
+    `;
+  }
+
+  onSnapshot(collection(db, "users"), (snap) => {
+    const list = document.getElementById("admin-user-list");
+    if (!list) return;
+    list.innerHTML = "";
+    snap.forEach(d => {
+      const u = d.data();
+      const uid = d.id;
+      list.innerHTML += `
+        <div class="user-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:#111827; padding:8px 12px; border-radius:6px;">
+          <span style="cursor:pointer;" onclick="viewUserStats('${uid}', '${u.username.replace(/'/g, "\\'")}', '${u.email}', ${u.balance}, ${u.wagered || 0}, '${encodeURIComponent(JSON.stringify(u.claimedMilestones || []))}')">
+            <strong style="color:#3b82f6; text-decoration:underline;">${u.username}</strong> (${u.email}) - <strong>${u.balance} Coins</strong>
+          </span>
+          <div style="display:flex; gap:6px;">
+            <button onclick="openAdminTip('${u.username.replace(/'/g, "\\'")}')" style="background:#2563eb; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">Tip</button>
+            <button onclick="deductUserBalance('${uid}', '${u.username.replace(/'/g, "\\'")}', ${u.balance})" style="background:#dc2626; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">Deduct</button>
+          </div>
+        </div>`;
+    });
+  });
+
+  onSnapshot(collection(db, "withdrawals"), (snap) => {
+    const list = document.getElementById("admin-withdraw-list");
+    if (!list) return;
+    list.innerHTML = "";
+    snap.forEach(d => {
+      const w = d.data();
+      if (w.status === "pending") {
+        const itemInfo = w.details ? w.details : `${w.itemName} (${w.cost}c)`;
+        list.innerHTML += `
+          <div class="req-row" style="display:flex; justify-content:space-between; margin-bottom:8px;">
+            <span><strong>${w.username}</strong> requested <strong>${itemInfo}</strong></span>
+            <div>
+              <button onclick="approveWithdraw('${d.id}')">Approve</button>
+              <button class="btn-danger" onclick="rejectWithdraw('${d.id}', '${w.userId}', ${w.cost})">Reject & Refund</button>
+            </div>
+          </div>`;
+      }
+    });
+  });
 }
 
 window.updateHousePool = async () => {
- const val = parseInt(document.getElementById("admin-pool-input").value);
- if (isNaN(val)) return alert("Please enter a valid pool amount!");
- try {
- await setDoc(doc(db, "settings", "casino"), { housePool: val }, { merge: true });
- alert(`House pool successfully updated to ${val} coins!`);
- } catch (err) {
- alert(err.message);
- }
-}; 
+  const val = parseInt(document.getElementById("admin-pool-input").value);
+  if (isNaN(val)) return alert("Please enter a valid pool amount!");
+
+  try {
+    await setDoc(doc(db, "settings", "casino"), { housePool: val }, { merge: true });
+    alert(`House pool successfully updated to ${val} coins!`);
+  } catch (err) {
+    alert(err.message);
+  }
+};
 
 window.viewUserStats = (uid, username, email, balance, wagered, encodedClaimed) => {
- let claimedArray = [];
- try {
- claimedArray = JSON.parse(decodeURIComponent(encodedClaimed));
- } catch (e) {
- claimedArray = [];
- }
- const milestonesDef = [
- { id: 1, target: 100, reward: 5 },
- { id: 2, target: 500, reward: 10 },
- { id: 3, target: 1500, reward: 30 },
- { id: 4, target: 3000, reward: 70 },
- { id: 5, target: 5000, reward: 150 }
- ];
- let claimedHtml = "";
- let totalClaimedCoins = 0;
- if (claimedArray.length === 0) {
- claimedHtml = `<p style="color: #9ca3af; font-size: 0.9rem;">No milestones claimed yet.</p>`;
- } else {
- claimedHtml = `<ul style="list-style-type: disc; padding-left: 20px; color: #d1d5db; font-size: 0.9rem;">`;
- claimedArray.forEach(id => {
- const found = milestonesDef.find(m => m.id === id);
- if (found) {  
- totalClaimedCoins += found.reward;
- claimedHtml += `<li>Milestone ${found.id} (Wager ${found.target} Coins): <strong class="text-green">+${found.reward} Coins</strong></li>`;
- } else {
- claimedHtml += `<li>Milestone ID ${id}</li>`;
- }
- });
- claimedHtml += `</ul>`;
- claimedHtml += `<p style="margin-top: 8px; color: #60a5fa; font-size: 0.9rem;"><strong>Total Milestone Coins Claimed:</strong> ${totalClaimedCoins}</p>`;
- }
- 
- document.getElementById("stats-username").innerText = `${username}'s Profile`;
- document.getElementById("stats-email").innerText = email;
- document.getElementById("stats-balance").innerText = balance;
- document.getElementById("stats-wagered").innerText = wagered;
- 
- let milestoneStatsContainer = document.getElementById("stats-milestones-container");
- if (!milestoneStatsContainer) {
- const statsModalContent = document.querySelector("#user-stats-modal .modal-content") || document.getElementById("user-stats-modal");
- milestoneStatsContainer = document.createElement("div");
- milestoneStatsContainer.id = "stats-milestones-container";
- milestoneStatsContainer.style.cssText = "margin-top: 16px; border-top: 1px solid #374151; padding-top: 12px;";
- statsModalContent.appendChild(milestoneStatsContainer);
- }
- 
- milestoneStatsContainer.innerHTML = `  
- <h4 style="color: #fff; margin-bottom: 8px; font-size: 1rem;">Claimed Rewards & Milestones (Current Cycle):</h4>
- ${claimedHtml}
- <div style="margin-top: 12px; display: flex; gap: 8px;">
- <button onclick="openAdminTip('${username.replace(/'/g, "\\'")}')" style="background:#2563eb; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.85rem;">Tip Player</button>
- </div>
- `;
- document.getElementById("user-stats-modal").classList.remove("hidden");
+  let claimedArray = [];
+  try {
+    claimedArray = JSON.parse(decodeURIComponent(encodedClaimed));
+  } catch (e) {
+    claimedArray = [];
+  }
+
+  const milestonesDef = [
+    { id: 1, target: 100, reward: 5 },
+    { id: 2, target: 500, reward: 10 },
+    { id: 3, target: 1500, reward: 30 },
+    { id: 4, target: 3000, reward: 70 },
+    { id: 5, target: 5000, reward: 150 }
+  ];
+
+  let claimedHtml = "";
+  let totalClaimedCoins = 0;
+
+  if (claimedArray.length === 0) {
+    claimedHtml = `<p style="color: #9ca3af; font-size: 0.9rem;">No milestones claimed yet.</p>`;
+  } else {
+    claimedHtml = `<ul style="list-style-type: disc; padding-left: 20px; color: #d1d5db; font-size: 0.9rem;">`;
+    claimedArray.forEach(id => {
+      const found = milestonesDef.find(m => m.id === id);
+      if (found) {
+        totalClaimedCoins += found.reward;
+        claimedHtml += `<li>Milestone ${found.id} (Wager ${found.target} Coins): <strong class="text-green">+${found.reward} Coins</strong></li>`;
+      } else {
+        claimedHtml += `<li>Milestone ID ${id}</li>`;
+      }
+    });
+    claimedHtml += `</ul>`;
+    claimedHtml += `<p style="margin-top: 8px; color: #60a5fa; font-size: 0.9rem;"><strong>Total Milestone Coins Claimed:</strong> ${totalClaimedCoins}</p>`;
+  }
+
+  document.getElementById("stats-username").innerText = `${username}'s Profile`;
+  document.getElementById("stats-email").innerText = email;
+  document.getElementById("stats-balance").innerText = balance;
+  document.getElementById("stats-wagered").innerText = wagered;
+
+  let milestoneStatsContainer = document.getElementById("stats-milestones-container");
+  if (!milestoneStatsContainer) {
+    const statsModalContent = document.querySelector("#user-stats-modal .modal-content") || document.getElementById("user-stats-modal");
+    milestoneStatsContainer = document.createElement("div");
+    milestoneStatsContainer.id = "stats-milestones-container";
+    milestoneStatsContainer.style.cssText = "margin-top: 16px; border-top: 1px solid #374151; padding-top: 12px;";
+    statsModalContent.appendChild(milestoneStatsContainer);
+  }
+
+  milestoneStatsContainer.innerHTML = `
+    <h4 style="color: #fff; margin-bottom: 8px; font-size: 1rem;">Claimed Rewards & Milestones (Current Cycle):</h4>
+    ${claimedHtml}
+    <div style="margin-top: 12px; display: flex; gap: 8px;">
+      <button onclick="openAdminTip('${username.replace(/'/g, "\\'")}')" style="background:#2563eb; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.85rem;">Tip Player</button>
+    </div>
+  `;
+
+  document.getElementById("user-stats-modal").classList.remove("hidden");
 };
 
 document.getElementById("btn-close-stats")?.addEventListener("click", () => {
- document.getElementById("user-stats-modal").classList.add("hidden");
+  document.getElementById("user-stats-modal").classList.add("hidden");
 });
 
 window.openAdminTip = (username) => {
- document.getElementById("tip-recipient").value = username;
- document.getElementById("tip-modal").classList.remove("hidden");
+  document.getElementById("tip-recipient").value = username;
+  document.getElementById("tip-modal").classList.remove("hidden");
 };
 
 window.deductUserBalance = async (uid, username, currentBalance) => {
- const amountStr = prompt(`Enter number of coins to deduct from ${username}:`);
- if (!amountStr) return;
- const amount = parseInt(amountStr);
- if (isNaN(amount) || amount <= 0) {
- return alert("Please enter a valid positive number.");
- }  
- if (amount > currentBalance) {
- return alert(`Cannot deduct ${amount} coins. User only has ${currentBalance} coins.`);
- }
- try {
- await updateDoc(doc(db, "users", uid), {
- balance: increment(-amount)
- });
- alert(`Deducted ${amount} coins from ${username}.`);
- } catch (err) {
- alert(err.message);
- }
+  const amountStr = prompt(`Enter number of coins to deduct from ${username}:`);
+  if (!amountStr) return;
+
+  const amount = parseInt(amountStr);
+  if (isNaN(amount) || amount <= 0) {
+    return alert("Please enter a valid positive number.");
+  }
+
+  if (amount > currentBalance) {
+    return alert(`Cannot deduct ${amount} coins. User only has ${currentBalance} coins.`);
+  }
+
+  try {
+    await updateDoc(doc(db, "users", uid), {
+      balance: increment(-amount)
+    });
+    alert(`Deducted ${amount} coins from ${username}.`);
+  } catch (err) {
+    alert(err.message);
+  }
 };
 
 window.approveWithdraw = async (reqId) => {
- await updateDoc(doc(db, "withdrawals", reqId), { status: "approved" });
- alert("Request approved!");
+  await updateDoc(doc(db, "withdrawals", reqId), { status: "approved" });
+  alert("Request approved!");
 };
 
 window.rejectWithdraw = async (reqId, userId, refundCost) => {
- await runTransaction(db, async (t) => {
- const userDoc = await t.get(doc(db, "users", userId));
- t.update(doc(db, "users", userId), { balance: userDoc.data().balance + refundCost });
- t.update(doc(db, "withdrawals", reqId), { status: "rejected" });
- });
- alert("Request rejected & coins refunded!");
+  await runTransaction(db, async (t) => {
+    const userDoc = await t.get(doc(db, "users", userId));
+    t.update(doc(db, "users", userId), { balance: userDoc.data().balance + refundCost });
+    t.update(doc(db, "withdrawals", reqId), { status: "rejected" });
+  });
+  alert("Request rejected & coins refunded!");
 };
