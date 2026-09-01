@@ -19,36 +19,12 @@ const db = getFirestore(app);
 
 let currentUser = null;
 let userData = null;
-let globalSettings = { housePool: 10000 };
 
-// Helper function to calculate target win probability based on bet amount and house pool
-function getAdjustedWinChance(bet, potentialWin, housePool) {
-  if (housePool <= 0 || potentialWin > housePool) {
-    return 0.15; // Heavy penalty if pool is dry
-  }
-  
-  if (bet < 10) return 0.40;
-  if (bet > 20) return 0.25;
-  return 0.30;
-}
-
-// Helper function to check and handle 3-day milestone resets
-async function checkMilestoneReset(userId, userDocData) {
-  const now = Date.now();
-  const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
-  const lastReset = userDocData.lastMilestoneReset || 0;
-
-  if (now - lastReset >= THREE_DAYS_MS) {
-    try {
-      await updateDoc(doc(db, "users", userId), {
-        wagered: 0,
-        claimedMilestones: [],
-        lastMilestoneReset: now
-      });
-    } catch (err) {
-      console.error("Error resetting milestones:", err);
-    }
-  }
+// Helper function to calculate target win probability based on bet amount
+function getWinChance(bet) {
+  if (bet < 10) return 0.40;       // Less than 10c -> 40%
+  if (bet > 20) return 0.25;       // More than 20c -> 25%
+  return 0.30;                     // Between 10c and 20c (inclusive) -> 30%
 }
 
 // --- AUTHENTICATION ---
@@ -63,8 +39,9 @@ document.getElementById("btn-signup")?.addEventListener("click", async () => {
     const res = await createUserWithEmailAndPassword(auth, email, password);
     const isAdmin = email.toLowerCase() === "saboorezz@gmail.com";
     
+    // Initialize starting balance and wagered tracker at 0
     await setDoc(doc(db, "users", res.user.uid), {
-      email, username, balance: 0, wagered: 0, isAdmin, claimedMilestones: [], lastMilestoneReset: Date.now()
+      email, username, balance: 0, wagered: 0, isAdmin
     });
     alert("Account created successfully!");
   } catch (err) { alert(err.message); }
@@ -86,19 +63,9 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById("auth-container").classList.add("hidden");
     document.getElementById("app-container").classList.remove("hidden");
 
-    onSnapshot(doc(db, "settings", "casino"), (docSnap) => {
-      if (docSnap.exists()) {
-        globalSettings = docSnap.data();
-      } else {
-        setDoc(doc(db, "settings", "casino"), { housePool: 10000 });
-      }
-    });
-
-    onSnapshot(doc(db, "users", user.uid), async (docSnap) => {
+    onSnapshot(doc(db, "users", user.uid), (docSnap) => {
       if (docSnap.exists()) {
         userData = docSnap.data();
-        await checkMilestoneReset(user.uid, userData);
-
         document.getElementById("display-user").innerText = userData.username;
         document.getElementById("display-balance").innerText = userData.balance;
 
@@ -106,14 +73,11 @@ onAuthStateChanged(auth, async (user) => {
           document.querySelectorAll(".admin-only").forEach(el => el.classList.remove("hidden"));
           loadAdminPanel();
         }
-
-        loadMilestones();
       }
     });
 
     loadStore();
     listenChat();
-    loadMilestones();
   } else {
     document.getElementById("auth-container").classList.remove("hidden");
     document.getElementById("app-container").classList.add("hidden");
@@ -151,43 +115,39 @@ window.play3DCoinflip = async (choice) => {
   const resultText = document.getElementById("coinflip-result");
   const coin = document.getElementById("coin");
 
-  if (isNaN(bet) || bet <= 0) {
-    return alert("Please enter a valid bet amount!");
+  if (isNaN(bet) || bet <= 0 || bet > userData.balance) {
+    return alert("Invalid bet amount or insufficient balance!");
   }
-  if (bet > userData.balance) {
-    return alert("Insufficient balance!");
+  if (bet > 25) {
+    return alert("Maximum bet limit for Coinflip is 25 coins.");
   }
 
   coin.style.transition = "none";
   coin.className = "coin";
   void coin.offsetWidth;
-  coin.style.transition = "transform 3.3s cubic-bezier(0.15, 0.85, 0.35, 1.2)";
+  coin.style.transition = "transform 3s cubic-bezier(0.15, 0.85, 0.35, 1.2)";
 
-  const potentialWin = bet;
-  const winChance = getAdjustedWinChance(bet, potentialWin, globalSettings.housePool);
+  // Weighted win calculation
+  const winChance = getWinChance(bet);
   const won = Math.random() < winChance;
   
-  let outcome = won ? choice : (choice === "heads" ? "tails" : "heads");
+  let outcome;
+  if (won) {
+    outcome = choice;
+  } else {
+    outcome = choice === "heads" ? "tails" : "heads";
+  }
+
   const newBalance = won ? userData.balance + bet : userData.balance - bet;
-  const poolChange = won ? -bet : bet;
 
   coin.classList.add(outcome === "heads" ? "animate-heads" : "animate-tails");
   resultText.innerText = "Flipping...";
   resultText.className = "game-status-text text-blue";
 
   setTimeout(async () => {
-    await runTransaction(db, async (t) => {
-      const userRef = doc(db, "users", currentUser.uid);
-      const settingsRef = doc(db, "settings", "casino");
-      
-      const currentSettingsDoc = await t.get(settingsRef);
-      const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
-
-      t.update(userRef, { 
-        balance: newBalance,
-        wagered: increment(bet)
-      });
-      t.update(settingsRef, { housePool: currentPool + poolChange });
+    await updateDoc(doc(db, "users", currentUser.uid), { 
+      balance: newBalance,
+      wagered: increment(bet)
     });
 
     if (won) {
@@ -207,20 +167,19 @@ window.playDice = async () => {
   const resultText = document.getElementById("dice-result");
   const display = document.getElementById("dice-display");
 
-  if (isNaN(bet) || bet <= 0) {
-    resultText.innerText = "Please enter a valid bet amount!";
+  if (isNaN(bet) || bet <= 0 || bet > userData.balance) {
+    resultText.innerText = "Invalid bet amount or insufficient balance!";
     resultText.className = "game-status-text text-red";
     return;
   }
-  if (bet > userData.balance) {
-    resultText.innerText = "Insufficient balance!";
+  if (bet > 50) {
+    resultText.innerText = "Maximum bet limit for Dice is 50 coins.";
     resultText.className = "game-status-text text-red";
     return;
   }
 
-  const multiplier = target === "exact6" ? 5 : 2;
-  const potentialProfit = bet * (multiplier - 1);
-  const winChance = getAdjustedWinChance(bet, potentialProfit, globalSettings.housePool);
+  // Determine if this play will be a forced win or loss based on bet amount
+  const winChance = getWinChance(bet);
   const won = Math.random() < winChance;
 
   let validNumbers = [];
@@ -237,40 +196,27 @@ window.playDice = async () => {
     invalidNumbers = [1, 2, 3, 4, 5];
   }
 
+  // Select roll outcome based on target probability
   const pool = won ? validNumbers : invalidNumbers;
   const roll = pool[Math.floor(Math.random() * pool.length)];
 
   const diceEmojis = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
   display.innerText = diceEmojis[roll];
 
+  const multiplier = target === "exact6" ? 5 : 2;
+
   if (won) {
     const profit = bet * (multiplier - 1);
-    await runTransaction(db, async (t) => {
-      const userRef = doc(db, "users", currentUser.uid);
-      const settingsRef = doc(db, "settings", "casino");
-      const currentSettingsDoc = await t.get(settingsRef);
-      const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
-
-      t.update(userRef, { 
-        balance: userData.balance + profit,
-        wagered: increment(bet)
-      });
-      t.update(settingsRef, { housePool: currentPool - profit });
+    await updateDoc(doc(db, "users", currentUser.uid), { 
+      balance: userData.balance + profit,
+      wagered: increment(bet)
     });
     resultText.innerText = `Rolled ${roll}! You won ${profit} coins! 🎉`;
     resultText.className = "game-status-text text-green";
   } else {
-    await runTransaction(db, async (t) => {
-      const userRef = doc(db, "users", currentUser.uid);
-      const settingsRef = doc(db, "settings", "casino");
-      const currentSettingsDoc = await t.get(settingsRef);
-      const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
-
-      t.update(userRef, { 
-        balance: userData.balance - bet,
-        wagered: increment(bet)
-      });
-      t.update(settingsRef, { housePool: currentPool + bet });
+    await updateDoc(doc(db, "users", currentUser.uid), { 
+      balance: userData.balance - bet,
+      wagered: increment(bet)
     });
     resultText.innerText = `Rolled ${roll}. You lost ${bet} coins.`;
     resultText.className = "game-status-text text-red";
@@ -323,19 +269,19 @@ window.startBlackjack = async () => {
   bjBetAmount = parseInt(document.getElementById('bj-bet').value);
   const resultText = document.getElementById('bj-result');
 
-  if (isNaN(bjBetAmount) || bjBetAmount <= 0) {
-    resultText.innerText = "Please enter a valid bet amount!";
+  if (isNaN(bjBetAmount) || bjBetAmount <= 0 || bjBetAmount > userData.balance) {
+    resultText.innerText = "Invalid bet amount or insufficient balance!";
     resultText.className = "game-status-text text-red";
     return;
   }
-  if (bjBetAmount > userData.balance) {
-    resultText.innerText = "Insufficient balance!";
+  if (bjBetAmount > 30) {
+    resultText.innerText = "Maximum bet limit for Blackjack is 30 coins.";
     resultText.className = "game-status-text text-red";
     return;
   }
 
-  const potentialWin = bjBetAmount;
-  const winChance = getAdjustedWinChance(bjBetAmount, potentialWin, globalSettings.housePool);
+  // Determine hand probability
+  const winChance = getWinChance(bjBetAmount);
   bjIsForcedLoss = Math.random() >= winChance;
 
   await updateDoc(doc(db, "users", currentUser.uid), {
@@ -345,6 +291,7 @@ window.startBlackjack = async () => {
   bjDeck = createDeck();
   
   if (bjIsForcedLoss) {
+    // Deal a weaker starting hand (e.g., 14, 15, or 16)
     playerHand = [{ value: '10', suit: '♠' }, { value: '5', suit: '♥' }];
     dealerHand = [{ value: '10', suit: '♦' }, { value: '9', suit: '♣' }];
   } else {
@@ -360,21 +307,14 @@ window.startBlackjack = async () => {
 
   if (calculateHand(playerHand) === 21) {
     const payout = Math.floor(bjBetAmount * 1.5);
-    await runTransaction(db, async (t) => {
-      const userRef = doc(db, "users", currentUser.uid);
-      const settingsRef = doc(db, "settings", "casino");
-      const currentSettingsDoc = await t.get(settingsRef);
-      const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
-
-      t.update(userRef, { balance: userData.balance + payout });
-      t.update(settingsRef, { housePool: currentPool - payout });
-    });
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: userData.balance + payout });
     endBJ(`Blackjack! You won ${payout} coins! 🎉`, 'text-green');
   }
 };
 
 window.hitBlackjack = async () => {
   if (bjIsForcedLoss && calculateHand(playerHand) >= 15) {
+    // Force a bust card if target loss flag is active
     playerHand.push({ value: '10', suit: '♠' });
   } else {
     playerHand.push(bjDeck.pop());
@@ -383,15 +323,7 @@ window.hitBlackjack = async () => {
   renderBJ();
   
   if (calculateHand(playerHand) > 21) {
-    await runTransaction(db, async (t) => {
-      const userRef = doc(db, "users", currentUser.uid);
-      const settingsRef = doc(db, "settings", "casino");
-      const currentSettingsDoc = await t.get(settingsRef);
-      const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
-
-      t.update(userRef, { balance: userData.balance - bjBetAmount });
-      t.update(settingsRef, { housePool: currentPool + bjBetAmount });
-    });
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: userData.balance - bjBetAmount });
     endBJ(`Bust! You lost ${bjBetAmount} coins.`, 'text-red');
   }
 };
@@ -405,104 +337,13 @@ window.standBlackjack = async () => {
   const pScore = calculateHand(playerHand), dScore = calculateHand(dealerHand);
   
   if (dScore > 21 || pScore > dScore) {
-    await runTransaction(db, async (t) => {
-      const userRef = doc(db, "users", currentUser.uid);
-      const settingsRef = doc(db, "settings", "casino");
-      const currentSettingsDoc = await t.get(settingsRef);
-      const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
-
-      t.update(userRef, { balance: userData.balance + bjBetAmount });
-      t.update(settingsRef, { housePool: currentPool - bjBetAmount });
-    });
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: userData.balance + bjBetAmount });
     endBJ(`You win ${bjBetAmount} coins! 🎉`, 'text-green');
   } else if (pScore === dScore) {
     endBJ(`Push! Your bet was returned.`, 'text-blue');
   } else {
-    await runTransaction(db, async (t) => {
-      const userRef = doc(db, "users", currentUser.uid);
-      const settingsRef = doc(db, "settings", "casino");
-      const currentSettingsDoc = await t.get(settingsRef);
-      const currentPool = currentSettingsDoc.exists() ? currentSettingsDoc.data().housePool : 10000;
-
-      t.update(userRef, { balance: userData.balance - bjBetAmount });
-      t.update(settingsRef, { housePool: currentPool + bjBetAmount });
-    });
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: userData.balance - bjBetAmount });
     endBJ(`Dealer wins. You lost ${bjBetAmount} coins.`, 'text-red');
-  }
-};
-
-// --- WAGER MILESTONES ---
-function loadMilestones() {
-  const container = document.getElementById("milestone-rewards-list");
-  if (!container || !userData) return;
-
-  const milestones = [
-    { id: 1, target: 100, reward: 5 },
-    { id: 2, target: 500, reward: 10 },
-    { id: 3, target: 1500, reward: 30 },
-    { id: 4, target: 3000, reward: 70 },
-    { id: 5, target: 5000, reward: 150 }
-  ];
-
-  const wagered = userData?.wagered || 0;
-  const claimedMilestones = Array.isArray(userData?.claimedMilestones) ? userData.claimedMilestones : [];
-
-  container.innerHTML = "";
-  milestones.forEach((m) => {
-    const progress = Math.min(wagered, m.target);
-    const percentage = Math.floor((progress / m.target) * 100);
-    const isCompleted = wagered >= m.target;
-    const isClaimed = claimedMilestones.includes(m.id);
-
-    const card = document.createElement("div");
-    card.className = "milestone-card";
-    card.style.cssText = "margin-bottom: 16px; padding: 16px; background: #111827; border-radius: 8px; border: 1px solid #1f2937;";
-
-    let buttonHtml = '';
-    if (isClaimed) {
-      buttonHtml = `<button class="btn-game" style="background: #1f2937; color: #9ca3af; cursor: not-allowed; width: 100%; padding: 8px; border: none; border-radius: 4px;" disabled>Claimed</button>`;
-    } else if (isCompleted) {
-      buttonHtml = `<button class="btn-game" style="background: #059669; color: #fff; cursor: pointer; width: 100%; padding: 8px; border: none; border-radius: 4px;" onclick="claimMilestone(${m.id}, ${m.reward})">Claim</button>`;
-    } else {
-      buttonHtml = `<button class="btn-game" style="background: #374151; color: #fff; cursor: not-allowed; width: 100%; padding: 8px; border: none; border-radius: 4px;" disabled>Locked</button>`;
-    }
-
-    card.innerHTML = `
-      <div class="milestone-info" style="margin-bottom: 12px;">
-        <h4 style="color: #fff; margin-bottom: 4px; font-size: 1rem;">Milestone ${m.id}: Wager ${m.target} Coins</h4>
-        <p style="color: #9ca3af; font-size: 0.85rem; margin-bottom: 8px;">Reward: <strong class="text-green">+${m.reward} Coins</strong></p>
-        
-        <div style="background: #1f2937; height: 8px; border-radius: 4px; overflow: hidden; width: 100%; margin-bottom: 6px;">
-          <div style="background: #3b82f6; width: ${percentage}%; height: 100%; transition: width 0.3s;"></div>
-        </div>
-        <span style="font-size: 0.75rem; color: #9ca3af; display: inline-block;">Progress: ${progress} / ${m.target} (${percentage}%)</span>
-      </div>
-      <div class="milestone-btn-container">
-        ${buttonHtml}
-      </div>
-    `;
-
-    container.appendChild(card);
-  });
-}
-
-// --- CLAIM MILESTONE HANDLER ---
-window.claimMilestone = async (milestoneId, rewardAmount) => {
-  if (!currentUser || !userData) return;
-
-  const claimedMilestones = Array.isArray(userData.claimedMilestones) ? userData.claimedMilestones : [];
-  if (claimedMilestones.includes(milestoneId)) {
-    return alert("You have already claimed this milestone!");
-  }
-
-  try {
-    await updateDoc(doc(db, "users", currentUser.uid), {
-      balance: increment(rewardAmount),
-      claimedMilestones: [...claimedMilestones, milestoneId]
-    });
-    alert(`🎉 Successfully claimed ${rewardAmount} coins!`);
-  } catch (err) {
-    alert(err.message);
   }
 };
 
@@ -765,28 +606,6 @@ async function requestWithdraw(name, baseCost, totalCoinsSpent) {
 
 // --- ADMIN PANEL FUNCTIONS ---
 function loadAdminPanel() {
-  let poolContainer = document.getElementById("admin-house-pool-container");
-  if (!poolContainer) {
-    const adminPanelEl = document.querySelector("#admin-panel") || document.querySelector(".admin-only");
-    if (adminPanelEl) {
-      poolContainer = document.createElement("div");
-      poolContainer.id = "admin-house-pool-container";
-      poolContainer.style.cssText = "margin-bottom: 16px; padding: 12px; background: #1f2937; border-radius: 6px; border: 1px solid #374151;";
-      adminPanelEl.prepend(poolContainer);
-    }
-  }
-
-  if (poolContainer) {
-    poolContainer.innerHTML = `
-      <h4 style="color: #fff; margin-bottom: 8px; font-size: 1rem;">Casino Vault / House Pool</h4>
-      <p style="color: #9ca3af; font-size: 0.85rem; margin-bottom: 8px;">Current Pool Available: <strong class="text-green" id="admin-pool-display">${globalSettings.housePool} Coins</strong></p>
-      <div style="display: flex; gap: 8px;">
-        <input type="number" id="admin-pool-input" placeholder="Set new pool amount" style="padding: 4px 8px; background: #111827; border: 1px solid #374151; color: #fff; border-radius: 4px; flex: 1;">
-        <button onclick="updateHousePool()" style="background: #2563eb; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Update Pool</button>
-      </div>
-    `;
-  }
-
   onSnapshot(collection(db, "users"), (snap) => {
     const list = document.getElementById("admin-user-list");
     if (!list) return;
@@ -796,7 +615,7 @@ function loadAdminPanel() {
       const uid = d.id;
       list.innerHTML += `
         <div class="user-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:#111827; padding:8px 12px; border-radius:6px;">
-          <span style="cursor:pointer;" onclick="viewUserStats('${uid}', '${u.username.replace(/'/g, "\\'")}', '${u.email}', ${u.balance}, ${u.wagered || 0}, '${encodeURIComponent(JSON.stringify(u.claimedMilestones || []))}')">
+          <span style="cursor:pointer;" onclick="viewUserStats('${uid}', '${u.username.replace(/'/g, "\\'")}', '${u.email}', ${u.balance}, ${u.wagered || 0})">
             <strong style="color:#3b82f6; text-decoration:underline;">${u.username}</strong> (${u.email}) - <strong>${u.balance} Coins</strong>
           </span>
           <div style="display:flex; gap:6px;">
@@ -828,76 +647,12 @@ function loadAdminPanel() {
   });
 }
 
-window.updateHousePool = async () => {
-  const val = parseInt(document.getElementById("admin-pool-input").value);
-  if (isNaN(val)) return alert("Please enter a valid pool amount!");
-
-  try {
-    await setDoc(doc(db, "settings", "casino"), { housePool: val }, { merge: true });
-    alert(`House pool successfully updated to ${val} coins!`);
-  } catch (err) {
-    alert(err.message);
-  }
-};
-
-window.viewUserStats = (uid, username, email, balance, wagered, encodedClaimed) => {
-  let claimedArray = [];
-  try {
-    claimedArray = JSON.parse(decodeURIComponent(encodedClaimed));
-  } catch (e) {
-    claimedArray = [];
-  }
-
-  const milestonesDef = [
-    { id: 1, target: 100, reward: 5 },
-    { id: 2, target: 500, reward: 10 },
-    { id: 3, target: 1500, reward: 30 },
-    { id: 4, target: 3000, reward: 70 },
-    { id: 5, target: 5000, reward: 150 }
-  ];
-
-  let claimedHtml = "";
-  let totalClaimedCoins = 0;
-
-  if (claimedArray.length === 0) {
-    claimedHtml = `<p style="color: #9ca3af; font-size: 0.9rem;">No milestones claimed yet.</p>`;
-  } else {
-    claimedHtml = `<ul style="list-style-type: disc; padding-left: 20px; color: #d1d5db; font-size: 0.9rem;">`;
-    claimedArray.forEach(id => {
-      const found = milestonesDef.find(m => m.id === id);
-      if (found) {
-        totalClaimedCoins += found.reward;
-        claimedHtml += `<li>Milestone ${found.id} (Wager ${found.target} Coins): <strong class="text-green">+${found.reward} Coins</strong></li>`;
-      } else {
-        claimedHtml += `<li>Milestone ID ${id}</li>`;
-      }
-    });
-    claimedHtml += `</ul>`;
-    claimedHtml += `<p style="margin-top: 8px; color: #60a5fa; font-size: 0.9rem;"><strong>Total Milestone Coins Claimed:</strong> ${totalClaimedCoins}</p>`;
-  }
-
+// Open User Stats / Wager Modal
+window.viewUserStats = (uid, username, email, balance, wagered) => {
   document.getElementById("stats-username").innerText = `${username}'s Profile`;
   document.getElementById("stats-email").innerText = email;
   document.getElementById("stats-balance").innerText = balance;
   document.getElementById("stats-wagered").innerText = wagered;
-
-  let milestoneStatsContainer = document.getElementById("stats-milestones-container");
-  if (!milestoneStatsContainer) {
-    const statsModalContent = document.querySelector("#user-stats-modal .modal-content") || document.getElementById("user-stats-modal");
-    milestoneStatsContainer = document.createElement("div");
-    milestoneStatsContainer.id = "stats-milestones-container";
-    milestoneStatsContainer.style.cssText = "margin-top: 16px; border-top: 1px solid #374151; padding-top: 12px;";
-    statsModalContent.appendChild(milestoneStatsContainer);
-  }
-
-  milestoneStatsContainer.innerHTML = `
-    <h4 style="color: #fff; margin-bottom: 8px; font-size: 1rem;">Claimed Rewards & Milestones (Current Cycle):</h4>
-    ${claimedHtml}
-    <div style="margin-top: 12px; display: flex; gap: 8px;">
-      <button onclick="openAdminTip('${username.replace(/'/g, "\\'")}')" style="background:#2563eb; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.85rem;">Tip Player</button>
-    </div>
-  `;
-
   document.getElementById("user-stats-modal").classList.remove("hidden");
 };
 
@@ -905,11 +660,13 @@ document.getElementById("btn-close-stats")?.addEventListener("click", () => {
   document.getElementById("user-stats-modal").classList.add("hidden");
 });
 
+// Admin Tip Action
 window.openAdminTip = (username) => {
   document.getElementById("tip-recipient").value = username;
   document.getElementById("tip-modal").classList.remove("hidden");
 };
 
+// Admin Deduct Balance Action
 window.deductUserBalance = async (uid, username, currentBalance) => {
   const amountStr = prompt(`Enter number of coins to deduct from ${username}:`);
   if (!amountStr) return;
@@ -945,4 +702,100 @@ window.rejectWithdraw = async (reqId, userId, refundCost) => {
     t.update(doc(db, "withdrawals", reqId), { status: "rejected" });
   });
   alert("Request rejected & coins refunded!");
+};
+
+// --- MILESTONE REWARDS LOGIC ---
+
+const MILESTONE_TIERS = [
+  { id: 1, requiredWager: 1500, reward: 30, label: "Tier 1: 1,500 Wagered" },
+  { id: 2, requiredWager: 6000, reward: 60, label: "Tier 2: 6,000 Wagered" },
+  { id: 3, requiredWager: 16000, reward: 150, label: "Tier 3: 16,000 Wagered" }
+];
+
+function getThreeDayCycleId() {
+  const now = new Date();
+  const epochDays = Math.floor(now.getTime() / (1000 * 60 * 60 * 24));
+  return Math.floor(epochDays / 3);
+}
+
+function renderMilestoneRewards(userMilestoneData) {
+  const container = document.getElementById("milestone-rewards-list");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const currentCycle = getThreeDayCycleId();
+  const userCycle = userMilestoneData?.cycleId === currentCycle ? userMilestoneData : { cycleId: currentCycle, wageredInCycle: 0, claimedTiers: [] };
+  const currentWagered = userCycle.wageredInCycle;
+
+  MILESTONE_TIERS.forEach(tier => {
+    const isClaimed = userCycle.claimedTiers.includes(tier.id);
+    const isUnlocked = currentWagered >= tier.requiredWager;
+    
+    let btnText = "Locked";
+    let btnDisabled = true;
+    let btnClass = "btn-secondary";
+
+    if (isClaimed) {
+      btnText = "Claimed ✓";
+    } else if (isUnlocked) {
+      btnText = `Claim ${tier.reward} Coins`;
+      btnDisabled = false;
+      btnClass = "btn-primary";
+    }
+
+    const progressPercent = Math.min(100, Math.floor((currentWagered / tier.requiredWager) * 100));
+
+    container.innerHTML += `
+      <div class="game-card" style="margin-bottom: 12px; padding: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h4 style="margin: 0; color: #fff;">${tier.label}</h4>
+          <span style="color: #3b82f6; font-weight: bold;">+${tier.reward} Tokens</span>
+        </div>
+        <p style="font-size: 13px; color: #9ca3af; margin-bottom: 8px;">Progress: ${currentWagered} / ${tier.requiredWager} (${progressPercent}%)</p>
+        <div style="background: #374151; height: 6px; border-radius: 3px; margin-bottom: 12px; overflow: hidden;">
+          <div style="background: #3b82f6; width: ${progressPercent}%; height: 100%;"></div>
+        </div>
+        <button class="${btnClass}" ${btnDisabled ? "disabled" : ""} onclick="claimMilestone(${tier.id}, ${tier.reward})">${btnText}</button>
+      </div>`;
+  });
+}
+
+window.claimMilestone = async (tierId, rewardAmount) => {
+  if (!currentUser) return;
+  const currentCycle = getThreeDayCycleId();
+  const userRef = doc(db, "users", currentUser.uid);
+
+  try {
+    await runTransaction(db, async (t) => {
+      const uDoc = await t.get(userRef);
+      if (!uDoc.exists()) throw new Error("User data not found!");
+
+      const data = uDoc.data();
+      let milestoneData = data.milestones || { cycleId: currentCycle, wageredInCycle: 0, claimedTiers: [] };
+
+      if (milestoneData.cycleId !== currentCycle) {
+        milestoneData = { cycleId: currentCycle, wageredInCycle: data.wagered || 0, claimedTiers: [] };
+      }
+
+      if (milestoneData.claimedTiers.includes(tierId)) {
+        throw new Error("Tier already claimed!");
+      }
+
+      const targetTier = MILESTONE_TIERS.find(tr => tr.id === tierId);
+      if (milestoneData.wageredInCycle < targetTier.requiredWager) {
+        throw new Error("Wager requirement not met yet!");
+      }
+
+      milestoneData.claimedTiers.push(tierId);
+
+      t.update(userRef, {
+        balance: data.balance + rewardAmount,
+        milestones: milestoneData
+      });
+    });
+
+    alert(`Successfully claimed ${rewardAmount} tokens!`);
+  } catch (err) {
+    alert(err.message);
+  }
 };
