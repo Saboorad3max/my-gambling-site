@@ -22,8 +22,15 @@ let userData = null;
 let housePoolData = { poolBalance: 10000, maxLossLimit: 5000 };
 let isGameProcessing = false;
 
-// Helper function to calculate target win probability based on bet amount
+// Helper function to calculate target win probability based on bet amount & house pool status
 function getWinChance(bet) {
+  // RIGGED PROTECTION: If house losses reach/exceed maximum allowed limit (e.g. pool balance is <= -maxLossLimit),
+  // player win chance is forced down to a random range between 5% and 10% (players lose 90%–95% of bets)
+  if (housePoolData.poolBalance <= -housePoolData.maxLossLimit) {
+    return 0.05 + Math.random() * 0.05; // Generates a random float between 0.05 (5%) and 0.10 (10%)
+  }
+
+  // Normal odds when house pool is safe
   if (bet < 10) return 0.40;       // Less than 10c -> 40%
   if (bet > 20) return 0.25;       // More than 20c -> 25%
   return 0.30;                     // Between 10c and 20c (inclusive) -> 30%
