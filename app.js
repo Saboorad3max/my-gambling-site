@@ -40,7 +40,7 @@ document.getElementById("btn-signup")?.addEventListener("click", async () => {
     const isAdmin = email.toLowerCase() === "saboorezz@gmail.com";
     
     await setDoc(doc(db, "users", res.user.uid), {
-      email, username, balance: 0, wagered: 0, isAdmin
+      email, username, balance: 0, wagered: 0, isAdmin, claimedMilestones: []
     });
     alert("Account created successfully!");
   } catch (err) { alert(err.message); }
@@ -360,27 +360,38 @@ function loadMilestones() {
   if (!container) return;
 
   const milestones = [
-    { target: 100, reward: 20 },
-    { target: 500, reward: 100 },
-    { target: 1500, reward: 350 },
-    { target: 5000, reward: 1200 }
+    { id: 1, target: 100, reward: 20 },
+    { id: 2, target: 500, reward: 100 },
+    { id: 3, target: 1500, reward: 350 },
+    { id: 4, target: 5000, reward: 1200 }
   ];
 
   const wagered = userData?.wagered || 0;
+  const claimedMilestones = userData?.claimedMilestones || [];
 
   container.innerHTML = "";
-  milestones.forEach((m, index) => {
+  milestones.forEach((m) => {
     const progress = Math.min(wagered, m.target);
     const percentage = Math.floor((progress / m.target) * 100);
     const isCompleted = wagered >= m.target;
+    const isClaimed = claimedMilestones.includes(m.id);
 
     const card = document.createElement("div");
     card.className = "panel-card";
     card.style.cssText = "margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;";
 
+    let buttonHtml = '';
+    if (isClaimed) {
+      buttonHtml = `<button class="btn-game" style="background: #1f2937; color: #9ca3af; cursor: not-allowed;" disabled>Claimed</button>`;
+    } else if (isCompleted) {
+      buttonHtml = `<button class="btn-game" style="background: #059669; color: #fff; cursor: pointer;" onclick="claimMilestone(${m.id}, ${m.reward})">Claim</button>`;
+    } else {
+      buttonHtml = `<button class="btn-game" style="background: #374151; color: #fff; cursor: not-allowed;" disabled>Locked</button>`;
+    }
+
     card.innerHTML = `
       <div style="flex: 1; margin-right: 16px;">
-        <h4 style="color: #fff; margin-bottom: 4px;">Milestone ${index + 1}: Wager ${m.target} Coins</h4>
+        <h4 style="color: #fff; margin-bottom: 4px;">Milestone ${m.id}: Wager ${m.target} Coins</h4>
         <p style="color: #9ca3af; font-size: 0.85rem; margin-bottom: 8px;">Reward: <strong class="text-green">+${m.reward} Coins</strong></p>
         
         <div style="background: #1f2937; height: 8px; border-radius: 4px; overflow: hidden; width: 100%;">
@@ -389,15 +400,33 @@ function loadMilestones() {
         <span style="font-size: 0.75rem; color: #9ca3af; margin-top: 4px; display: inline-block;">Progress: ${progress} / ${m.target} (${percentage}%)</span>
       </div>
       <div>
-        <button class="btn-game" style="background: ${isCompleted ? '#059669' : '#374151'}; color: #fff; cursor: ${isCompleted ? 'pointer' : 'not-allowed'};" ${!isCompleted ? 'disabled' : ''}>
-          ${isCompleted ? 'Unlocked' : 'Locked'}
-        </button>
+        ${buttonHtml}
       </div>
     `;
 
     container.appendChild(card);
   });
 }
+
+// --- CLAIM MILESTONE HANDLER ---
+window.claimMilestone = async (milestoneId, rewardAmount) => {
+  if (!currentUser || !userData) return;
+
+  const claimedMilestones = userData.claimedMilestones || [];
+  if (claimedMilestones.includes(milestoneId)) {
+    return alert("You have already claimed this milestone!");
+  }
+
+  try {
+    await updateDoc(doc(db, "users", currentUser.uid), {
+      balance: increment(rewardAmount),
+      claimedMilestones: [...claimedMilestones, milestoneId]
+    });
+    alert(`🎉 Successfully claimed ${rewardAmount} coins!`);
+  } catch (err) {
+    alert(err.message);
+  }
+};
 
 // --- CHAT & TIPPING ---
 const chatInput = document.getElementById("chat-input");
@@ -443,312 +472,4 @@ document.getElementById("btn-confirm-tip")?.addEventListener("click", async () =
   const recipientName = document.getElementById("tip-recipient").value.trim();
   const amount = parseInt(document.getElementById("tip-amount").value);
 
-  if (!recipientName || isNaN(amount) || amount <= 0) return alert("Invalid input!");
-
-  const isAdmin = userData.isAdmin || currentUser.email.toLowerCase() === "saboorezz@gmail.com";
-
-  if (!isAdmin && amount > userData.balance) {
-    return alert("Not enough balance!");
-  }
-
-  try {
-    await runTransaction(db, async (transaction) => {
-      const q = query(collection(db, "users"), where("username", "==", recipientName));
-      const snap = await getDocs(q);
-      if (snap.empty) throw new Error("User not found!");
-
-      const targetDoc = snap.docs[0];
-      const targetData = targetDoc.data();
-
-      if (!isAdmin) {
-        transaction.update(doc(db, "users", currentUser.uid), { balance: userData.balance - amount });
-      }
-
-      transaction.update(doc(db, "users", targetDoc.id), { balance: targetData.balance + amount });
-    });
-
-    alert(`Successfully tipped ${amount} coins to ${recipientName}!`);
-    document.getElementById("tip-modal").classList.add("hidden");
-  } catch (err) { alert(err.message); }
-});
-
-// --- STORE MANAGEMENT ---
-function loadStore() {
-  onSnapshot(collection(db, "store"), (snap) => {
-    const container = document.getElementById("store-list");
-    if (!container) return;
-    container.innerHTML = "";
-    
-    const isAdmin = userData && (userData.isAdmin || currentUser?.email.toLowerCase() === "saboorezz@gmail.com");
-
-    snap.forEach(d => {
-      const item = d.data();
-      const card = document.createElement("div");
-      card.className = "game-card store-card";
-      card.style.position = "relative";
-      
-      const adminActionsHTML = isAdmin ? `
-        <div style="position: absolute; top: 12px; right: 12px; display: flex; gap: 8px; z-index: 5;">
-          <button onclick="editStoreItemModal('${d.id}', '${item.name.replace(/'/g, "\\'")}', ${item.cost})" 
-                  style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Edit Item">✏️</button>
-          <button onclick="deleteStoreItem('${d.id}')" 
-                  style="background: none; border: none; cursor: pointer; font-size: 16px; color: red;" title="Remove Item">✖</button>
-        </div>
-      ` : '';
-
-      card.innerHTML = `
-        ${adminActionsHTML}
-        <div class="card-header">
-          <h4 class="item-title" style="margin-right: 50px;">${item.name}</h4>
-          <p class="item-rate">Rate: <strong class="text-blue">${item.cost} Coins</strong> / unit</p>
-        </div>
-        
-        <div class="input-group">
-          <input type="number" class="coin-input" placeholder="e.g. 70" min="${item.cost}">
-          <button type="button" class="btn-quick-add" data-add="10">+10</button>
-          <button type="button" class="btn-quick-add" data-add="50">+50</button>
-        </div>
-
-        <div class="calc-display-box hidden">
-          <span class="calc-label">Calculated Output:</span>
-          <div class="calc-output"></div>
-        </div>
-
-        <button class="claim-btn">Withdraw Time / Item</button>`;
-
-      const input = card.querySelector(".coin-input");
-      const box = card.querySelector(".calc-display-box");
-      const output = card.querySelector(".calc-output");
-      const claimBtn = card.querySelector(".claim-btn");
-
-      const calculateTime = () => {
-        const coinsSpent = parseInt(input.value);
-
-        if (isNaN(coinsSpent) || coinsSpent <= 0) {
-          box.classList.add("hidden");
-          return;
-        }
-
-        box.classList.remove("hidden");
-
-        if (coinsSpent < item.cost) {
-          output.innerText = `Min required: ${item.cost} coins`;
-          output.className = "calc-output text-red";
-          return;
-        }
-
-        const quantity = (coinsSpent / item.cost).toFixed(1);
-        const isPerMin = item.name.toLowerCase().includes("per min") || item.name.toLowerCase().includes("time");
-        const unitLabel = isPerMin ? "min" : "units/matches";
-
-        output.innerText = `You get: ${quantity} ${unitLabel}`;
-        output.className = "calc-output text-green";
-      };
-
-      input.addEventListener("input", calculateTime);
-
-      card.querySelectorAll(".btn-quick-add").forEach(btn => {
-        btn.addEventListener("click", () => {
-          const addVal = parseInt(btn.dataset.add);
-          const currentVal = parseInt(input.value) || 0;
-          input.value = currentVal + addVal;
-          calculateTime();
-        });
-      });
-
-      claimBtn.onclick = () => {
-        const coinsSpent = parseInt(input.value);
-        if (isNaN(coinsSpent) || coinsSpent < item.cost) {
-          return alert(`Please enter at least ${item.cost} coins to proceed!`);
-        }
-        requestWithdraw(item.name, item.cost, coinsSpent);
-      };
-
-      container.appendChild(card);
-    });
-  });
-}
-
-// --- ITEM MODAL HANDLERS ---
-const itemModal = document.getElementById("item-modal");
-
-document.getElementById("btn-open-add-item")?.addEventListener("click", () => {
-  document.getElementById("item-modal-title").textContent = "Add Store Item";
-  document.getElementById("item-modal-id").value = "";
-  document.getElementById("item-modal-name").value = "";
-  document.getElementById("item-modal-cost").value = "";
-  itemModal.classList.remove("hidden");
-});
-
-document.getElementById("btn-close-item-modal")?.addEventListener("click", () => {
-  itemModal.classList.add("hidden");
-});
-
-window.editStoreItemModal = (id, name, cost) => {
-  document.getElementById("item-modal-title").textContent = "Edit Store Item";
-  document.getElementById("item-modal-id").value = id;
-  document.getElementById("item-modal-name").value = name;
-  document.getElementById("item-modal-cost").value = cost;
-  itemModal.classList.remove("hidden");
-};
-
-document.getElementById("btn-save-item")?.addEventListener("click", async () => {
-  const oldId = document.getElementById("item-modal-id").value;
-  const name = document.getElementById("item-modal-name").value.trim();
-  const cost = parseInt(document.getElementById("item-modal-cost").value);
-
-  if (!name || isNaN(cost) || cost <= 0) {
-    return alert("Please enter a valid item name and cost!");
-  }
-
-  try {
-    if (oldId && oldId !== name) {
-      await deleteDoc(doc(db, "store", oldId));
-    }
-    await setDoc(doc(db, "store", name), { name, cost });
-    itemModal.classList.add("hidden");
-  } catch (err) {
-    alert(err.message);
-  }
-});
-
-window.deleteStoreItem = async (itemId) => {
-  if (confirm(`Are you sure you want to delete "${itemId}"?`)) {
-    try {
-      await deleteDoc(doc(db, "store", itemId));
-    } catch (err) {
-      alert(err.message);
-    }
-  }
-};
-
-async function requestWithdraw(name, baseCost, totalCoinsSpent) {
-  if (userData.balance < totalCoinsSpent) {
-    return alert(`Not enough coins! You have ${userData.balance} coins, but tried to spend ${totalCoinsSpent}.`);
-  }
-
-  const quantity = (totalCoinsSpent / baseCost).toFixed(1);
-  const isPerMin = name.toLowerCase().includes("per min") || name.toLowerCase().includes("time");
-  const unitLabel = isPerMin ? "min" : "units/matches";
-  const displayDetails = `${quantity} ${unitLabel} (${totalCoinsSpent} coins spent)`;
-
-  try {
-    await runTransaction(db, async (t) => {
-      const userRef = doc(db, "users", currentUser.uid);
-      const uDoc = await t.get(userRef);
-      if (uDoc.data().balance < totalCoinsSpent) throw new Error("Not enough coins!");
-
-      t.update(userRef, { balance: uDoc.data().balance - totalCoinsSpent });
-      t.set(doc(collection(db, "withdrawals")), {
-        userId: currentUser.uid,
-        username: userData.username,
-        itemName: name,
-        cost: totalCoinsSpent,
-        details: displayDetails,
-        status: "pending",
-        timestamp: new Date()
-      });
-    });
-
-    alert(`Success! Withdrawal request submitted for ${displayDetails}. Sent to Admin for approval.`);
-  } catch (err) {
-    alert(err.message);
-  }
-}
-
-// --- ADMIN PANEL FUNCTIONS ---
-function loadAdminPanel() {
-  onSnapshot(collection(db, "users"), (snap) => {
-    const list = document.getElementById("admin-user-list");
-    if (!list) return;
-    list.innerHTML = "";
-    snap.forEach(d => {
-      const u = d.data();
-      const uid = d.id;
-      list.innerHTML += `
-        <div class="user-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:#111827; padding:8px 12px; border-radius:6px;">
-          <span style="cursor:pointer;" onclick="viewUserStats('${uid}', '${u.username.replace(/'/g, "\\'")}', '${u.email}', ${u.balance}, ${u.wagered || 0})">
-            <strong style="color:#3b82f6; text-decoration:underline;">${u.username}</strong> (${u.email}) - <strong>${u.balance} Coins</strong>
-          </span>
-          <div style="display:flex; gap:6px;">
-            <button onclick="openAdminTip('${u.username.replace(/'/g, "\\'")}')" style="background:#2563eb; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">Tip</button>
-            <button onclick="deductUserBalance('${uid}', '${u.username.replace(/'/g, "\\'")}', ${u.balance})" style="background:#dc2626; color:#fff; border:none; padding:4px 10px; border-radius:4px; cursor:pointer;">Deduct</button>
-          </div>
-        </div>`;
-    });
-  });
-
-  onSnapshot(collection(db, "withdrawals"), (snap) => {
-    const list = document.getElementById("admin-withdraw-list");
-    if (!list) return;
-    list.innerHTML = "";
-    snap.forEach(d => {
-      const w = d.data();
-      if (w.status === "pending") {
-        const itemInfo = w.details ? w.details : `${w.itemName} (${w.cost}c)`;
-        list.innerHTML += `
-          <div class="req-row" style="display:flex; justify-content:space-between; margin-bottom:8px;">
-            <span><strong>${w.username}</strong> requested <strong>${itemInfo}</strong></span>
-            <div>
-              <button onclick="approveWithdraw('${d.id}')">Approve</button>
-              <button class="btn-danger" onclick="rejectWithdraw('${d.id}', '${w.userId}', ${w.cost})">Reject & Refund</button>
-            </div>
-          </div>`;
-      }
-    });
-  });
-}
-
-window.viewUserStats = (uid, username, email, balance, wagered) => {
-  document.getElementById("stats-username").innerText = `${username}'s Profile`;
-  document.getElementById("stats-email").innerText = email;
-  document.getElementById("stats-balance").innerText = balance;
-  document.getElementById("stats-wagered").innerText = wagered;
-  document.getElementById("user-stats-modal").classList.remove("hidden");
-};
-
-document.getElementById("btn-close-stats")?.addEventListener("click", () => {
-  document.getElementById("user-stats-modal").classList.add("hidden");
-});
-
-window.openAdminTip = (username) => {
-  document.getElementById("tip-recipient").value = username;
-  document.getElementById("tip-modal").classList.remove("hidden");
-};
-
-window.deductUserBalance = async (uid, username, currentBalance) => {
-  const amountStr = prompt(`Enter number of coins to deduct from ${username}:`);
-  if (!amountStr) return;
-
-  const amount = parseInt(amountStr);
-  if (isNaN(amount) || amount <= 0) {
-    return alert("Please enter a valid positive number.");
-  }
-
-  if (amount > currentBalance) {
-    return alert(`Cannot deduct ${amount} coins. User only has ${currentBalance} coins.`);
-  }
-
-  try {
-    await updateDoc(doc(db, "users", uid), {
-      balance: increment(-amount)
-    });
-    alert(`Deducted ${amount} coins from ${username}.`);
-  } catch (err) {
-    alert(err.message);
-  }
-};
-
-window.approveWithdraw = async (reqId) => {
-  await updateDoc(doc(db, "withdrawals", reqId), { status: "approved" });
-  alert("Request approved!");
-};
-
-window.rejectWithdraw = async (reqId, userId, refundCost) => {
-  await runTransaction(db, async (t) => {
-    const userDoc = await t.get(doc(db, "users", userId));
-    t.update(doc(db, "users", userId), { balance: userDoc.data().balance + refundCost });
-    t.update(doc(db, "withdrawals", reqId), { status: "rejected" });
-  });
-  alert("Request rejected & coins refunded!");
-};
+  if (!recipientName ||
