@@ -160,18 +160,10 @@ window.play3DCoinflip = async (choice) => {
   }, 3000);
 };
 
-// --- DICE GAME (3-MODE: 1-2, 3-4, 5-6 | 2.5x Payout) ---
-let selectedDiceMode = "1-2";
-
-window.setDiceMode = (mode, btnElement) => {
-  selectedDiceMode = mode;
-  document.querySelectorAll(".mode-btn").forEach(btn => btn.classList.remove("active"));
-  if (btnElement) btnElement.classList.add("active");
-};
-
+// --- DICE GAME ---
 window.playDice = async () => {
-  const betInput = document.getElementById("dice-bet");
-  const bet = parseInt(betInput.value);
+  const bet = parseInt(document.getElementById("dice-bet").value);
+  const target = document.getElementById("dice-target").value;
   const resultText = document.getElementById("dice-result");
   const display = document.getElementById("dice-display");
 
@@ -186,21 +178,25 @@ window.playDice = async () => {
     return;
   }
 
-  const modeRanges = {
+  // Determine win condition based on bet probability helper
+  const winChance = getWinChance(bet);
+  const won = Math.random() < winChance;
+
+  // Map 2-number target ranges
+  const rangeMap = {
     "1-2": { valid: [1, 2], invalid: [3, 4, 5, 6] },
     "3-4": { valid: [3, 4], invalid: [1, 2, 5, 6] },
     "5-6": { valid: [5, 6], invalid: [1, 2, 3, 4] }
   };
 
-  const currentMode = modeRanges[selectedDiceMode] || modeRanges["1-2"];
-  const winChance = getWinChance(bet);
-  const won = Math.random() < winChance;
+  const selectedRange = rangeMap[target] || rangeMap["1-2"];
 
-  const pool = won ? currentMode.valid : currentMode.invalid;
+  // Pick outcome from valid or invalid pool
+  const pool = won ? selectedRange.valid : selectedRange.invalid;
   const roll = pool[Math.floor(Math.random() * pool.length)];
 
   const diceEmojis = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
-  if (display) display.innerText = diceEmojis[roll];
+  display.innerText = diceEmojis[roll];
 
   const multiplier = 2.5;
 
@@ -212,7 +208,7 @@ window.playDice = async () => {
       balance: userData.balance + netProfit,
       wagered: increment(bet)
     });
-    resultText.innerText = `Rolled ${roll}! You won ${netProfit} coins! 🎉 (2.5x Payout)`;
+    resultText.innerText = `Rolled ${roll}! You won ${totalPayout} coins! 🎉 (2.5x Payout)`;
     resultText.className = "game-status-text text-green";
   } else {
     await updateDoc(doc(db, "users", currentUser.uid), { 
