@@ -160,10 +160,18 @@ window.play3DCoinflip = async (choice) => {
   }, 3000);
 };
 
-// --- DICE GAME ---
+// --- DICE GAME (3-MODE: 1-2, 3-4, 5-6 | 2.5x Payout) ---
+let selectedDiceMode = "1-2";
+
+window.setDiceMode = (mode, btnElement) => {
+  selectedDiceMode = mode;
+  document.querySelectorAll(".mode-btn").forEach(btn => btn.classList.remove("active"));
+  if (btnElement) btnElement.classList.add("active");
+};
+
 window.playDice = async () => {
-  const bet = parseInt(document.getElementById("dice-bet").value);
-  const target = document.getElementById("dice-target").value;
+  const betInput = document.getElementById("dice-bet");
+  const bet = parseInt(betInput.value);
   const resultText = document.getElementById("dice-result");
   const display = document.getElementById("dice-display");
 
@@ -178,40 +186,33 @@ window.playDice = async () => {
     return;
   }
 
-  // Determine if this play will be a forced win or loss based on bet amount
+  const modeRanges = {
+    "1-2": { valid: [1, 2], invalid: [3, 4, 5, 6] },
+    "3-4": { valid: [3, 4], invalid: [1, 2, 5, 6] },
+    "5-6": { valid: [5, 6], invalid: [1, 2, 3, 4] }
+  };
+
+  const currentMode = modeRanges[selectedDiceMode] || modeRanges["1-2"];
   const winChance = getWinChance(bet);
   const won = Math.random() < winChance;
 
-  let validNumbers = [];
-  let invalidNumbers = [];
-
-  if (target === "under3") {
-    validNumbers = [1, 2];
-    invalidNumbers = [3, 4, 5, 6];
-  } else if (target === "over3") {
-    validNumbers = [4, 5, 6];
-    invalidNumbers = [1, 2, 3];
-  } else if (target === "exact6") {
-    validNumbers = [6];
-    invalidNumbers = [1, 2, 3, 4, 5];
-  }
-
-  // Select roll outcome based on target probability
-  const pool = won ? validNumbers : invalidNumbers;
+  const pool = won ? currentMode.valid : currentMode.invalid;
   const roll = pool[Math.floor(Math.random() * pool.length)];
 
   const diceEmojis = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
-  display.innerText = diceEmojis[roll];
+  if (display) display.innerText = diceEmojis[roll];
 
-  const multiplier = target === "exact6" ? 5 : 2;
+  const multiplier = 2.5;
 
   if (won) {
-    const profit = bet * (multiplier - 1);
+    const totalPayout = Math.floor(bet * multiplier);
+    const netProfit = totalPayout - bet;
+
     await updateDoc(doc(db, "users", currentUser.uid), { 
-      balance: userData.balance + profit,
+      balance: userData.balance + netProfit,
       wagered: increment(bet)
     });
-    resultText.innerText = `Rolled ${roll}! You won ${profit} coins! 🎉`;
+    resultText.innerText = `Rolled ${roll}! You won ${netProfit} coins! 🎉 (2.5x Payout)`;
     resultText.className = "game-status-text text-green";
   } else {
     await updateDoc(doc(db, "users", currentUser.uid), { 
