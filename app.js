@@ -22,9 +22,9 @@ let userData = null;
 
 // Helper function to calculate target win probability based on bet amount
 function getWinChance(bet) {
-  if (bet < 10) return 0.40;       // Less than 10c -> 40%
-  if (bet > 20) return 0.25;       // More than 20c -> 25%
-  return 0.30;                     // Between 10c and 20c (inclusive) -> 30%
+  if (bet < 10) return 0.40;        // Less than 10c -> 40%
+  if (bet > 20) return 0.25;        // More than 20c -> 25%
+  return 0.30;                      // Between 10c and 20c (inclusive) -> 30%
 }
 
 // --- AUTHENTICATION ---
@@ -72,11 +72,15 @@ onAuthStateChanged(auth, async (user) => {
           document.querySelectorAll(".admin-only").forEach(el => el.classList.remove("hidden"));
           loadAdminPanel();
         }
+
+        // Refresh milestones when user data updates
+        loadMilestones();
       }
     });
 
     loadStore();
     listenChat();
+    loadMilestones();
   } else {
     document.getElementById("auth-container").classList.remove("hidden");
     document.getElementById("app-container").classList.add("hidden");
@@ -349,6 +353,51 @@ window.standBlackjack = async () => {
     endBJ(`Dealer wins. You lost ${bjBetAmount} coins.`, 'text-red');
   }
 };
+
+// --- 3-DAY WAGER MILESTONES ---
+function loadMilestones() {
+  const container = document.getElementById("milestone-rewards-list");
+  if (!container) return;
+
+  const milestones = [
+    { target: 100, reward: 20 },
+    { target: 500, reward: 100 },
+    { target: 1500, reward: 350 },
+    { target: 5000, reward: 1200 }
+  ];
+
+  const wagered = userData?.wagered || 0;
+
+  container.innerHTML = "";
+  milestones.forEach((m, index) => {
+    const progress = Math.min(wagered, m.target);
+    const percentage = Math.floor((progress / m.target) * 100);
+    const isCompleted = wagered >= m.target;
+
+    const card = document.createElement("div");
+    card.className = "panel-card";
+    card.style.cssText = "margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;";
+
+    card.innerHTML = `
+      <div style="flex: 1; margin-right: 16px;">
+        <h4 style="color: #fff; margin-bottom: 4px;">Milestone ${index + 1}: Wager ${m.target} Coins</h4>
+        <p style="color: #9ca3af; font-size: 0.85rem; margin-bottom: 8px;">Reward: <strong class="text-green">+${m.reward} Coins</strong></p>
+        
+        <div style="background: #1f2937; height: 8px; border-radius: 4px; overflow: hidden; width: 100%;">
+          <div style="background: #3b82f6; width: ${percentage}%; height: 100%; transition: width 0.3s;"></div>
+        </div>
+        <span style="font-size: 0.75rem; color: #9ca3af; margin-top: 4px; display: inline-block;">Progress: ${progress} / ${m.target} (${percentage}%)</span>
+      </div>
+      <div>
+        <button class="btn-game" style="background: ${isCompleted ? '#059669' : '#374151'}; color: #fff; cursor: ${isCompleted ? 'pointer' : 'not-allowed'};" ${!isCompleted ? 'disabled' : ''}>
+          ${isCompleted ? 'Unlocked' : 'Locked'}
+        </button>
+      </div>
+    `;
+
+    container.appendChild(card);
+  });
+}
 
 // --- CHAT & TIPPING ---
 const chatInput = document.getElementById("chat-input");
