@@ -19,6 +19,7 @@ const db = getFirestore(app);
 
 let currentUser = null;
 let userData = null;
+let housePoolData = { poolBalance: 10000, maxLossLimit: 5000 }; // Default fallback
 
 // Helper function to calculate target win probability based on bet amount
 function getWinChance(bet) {
@@ -73,6 +74,25 @@ onAuthStateChanged(auth, async (user) => {
           document.querySelectorAll(".admin-only").forEach(el => el.classList.remove("hidden"));
           loadAdminPanel();
         }
+      }
+    });
+
+    // Listen to House Pool metrics globally for admins/games
+    onSnapshot(doc(db, "settings", "housePool"), (docSnap) => {
+      if (docSnap.exists()) {
+        housePoolData = docSnap.data();
+        const poolEl = document.getElementById("display-house-pool");
+        const lossEl = document.getElementById("display-max-loss");
+        const inputPool = document.getElementById("input-house-pool");
+        const inputLoss = document.getElementById("input-max-loss");
+
+        if (poolEl) poolEl.innerText = `${housePoolData.poolBalance} Coins`;
+        if (lossEl) lossEl.innerText = `${housePoolData.maxLossLimit} Coins`;
+        if (inputPool && document.activeElement !== inputPool) inputPool.value = housePoolData.poolBalance;
+        if (inputLoss && document.activeElement !== inputLoss) inputLoss.value = housePoolData.maxLossLimit;
+      } else {
+        // Initialize default pool doc if missing
+        setDoc(doc(db, "settings", "housePool"), { poolBalance: 10000, maxLossLimit: 5000 });
       }
     });
 
@@ -131,30 +151,50 @@ window.play3DCoinflip = async (choice) => {
   const winChance = getWinChance(bet);
   const won = Math.random() < winChance;
   
-  let outcome;
-  if (won) {
-    outcome = choice;
-  } else {
-    outcome = choice === "heads" ? "tails" : "heads";
-  }
-
-  const newBalance = won ? userData.balance + bet : userData.balance - bet;
+  let outcome = won ? choice : (choice === "heads" ? "tails" : "heads");
+  const netChange = won ? bet : -bet;
 
   coin.classList.add(outcome === "heads" ? "animate-heads" : "animate-tails");
   resultText.innerText = "Flipping...";
   resultText.className = "game-status-text text-blue";
 
   setTimeout(async () => {
-    await updateDoc(doc(db, "users", currentUser.uid), { 
-      balance: newBalance,
-      wagered: increment(bet)
-    });
+    try {
+      await runTransaction(db, async (t) => {
+        const userRef = doc(db, "users", currentUser.uid);
+        const poolRef = doc(db, "settings", "housePool");
+        
+        const uDoc = await t.get(userRef);
+        const pDoc = await t.get(poolRef);
+        
+        const currentBal = uDoc.data().balance;
+        const currentPool = pDoc.data().poolBalance;
+        const maxLoss = pDoc.data().maxLossLimit;
 
-    if (won) {
-      resultText.innerText = `🎉 You Won! Flipped ${outcome.toUpperCase()}. (+${bet} coins)`;
-      resultText.className = "game-status-text text-green";
-    } else {
-      resultText.innerText = `❌ You Lost! Flipped ${outcome.toUpperCase()}. (-${bet} coins)`;
+        if (won && currentPool - bet < -maxLoss) {
+          throw new Error("House reserve safety lock triggered. Payout adjusted.");
+        }
+
+        t.update(userRef, { 
+          balance: currentBal + netChange,
+          wagered: increment(bet)
+        });
+
+        // House pool takes the opposite side of player action (-netChange)
+        t.update(poolRef, {
+          poolBalance: currentPool - netChange
+        });
+      });
+
+      if (won) {
+        resultText.innerText = `🎉 You Won! Flipped ${outcome.toUpperCase()}. (+${bet} coins)`;
+        resultText.className = "game-status-text text-green";
+      } else {
+        resultText.innerText = `❌ You Lost! Flipped ${outcome.toUpperCase()}. (-${bet} coins)`;
+        resultText.className = "game-status-text text-red";
+      }
+    } catch (err) {
+      resultText.innerText = `⚠️ ${err.message}`;
       resultText.className = "game-status-text text-red";
     }
   }, 3000);
@@ -178,11 +218,9 @@ window.playDice = async () => {
     return;
   }
 
-  // Determine win condition based on bet probability helper
   const winChance = getWinChance(bet);
   const won = Math.random() < winChance;
 
-  // Map 2-number target ranges
   const rangeMap = {
     "1-2": { valid: [1, 2], invalid: [3, 4, 5, 6] },
     "3-4": { valid: [3, 4], invalid: [1, 2, 5, 6] },
@@ -190,8 +228,6 @@ window.playDice = async () => {
   };
 
   const selectedRange = rangeMap[target] || rangeMap["1-2"];
-
-  // Pick outcome from valid or invalid pool
   const pool = won ? selectedRange.valid : selectedRange.invalid;
   const roll = pool[Math.floor(Math.random() * pool.length)];
 
@@ -199,23 +235,36 @@ window.playDice = async () => {
   display.innerText = diceEmojis[roll];
 
   const multiplier = 2.5;
+  const netProfit = Math.floor(bet * multiplier) - bet;
+  const netChange = won ? netProfit : -bet;
 
-  if (won) {
-    const totalPayout = Math.floor(bet * multiplier);
-    const netProfit = totalPayout - bet;
+  try {
+    await runTransaction(db, async (t) => {
+      const userRef = doc(db, "users", currentUser.uid);
+      const poolRef = doc(db, "settings", "housePool");
 
-    await updateDoc(doc(db, "users", currentUser.uid), { 
-      balance: userData.balance + netProfit,
-      wagered: increment(bet)
+      const uDoc = await t.get(userRef);
+      const pDoc = await t.get(poolRef);
+
+      t.update(userRef, { 
+        balance: uDoc.data().balance + netChange,
+        wagered: increment(bet)
+      });
+      t.update(poolRef, {
+        poolBalance: pDoc.data().poolBalance - netChange
+      });
     });
-    resultText.innerText = `Rolled ${roll}! You won ${totalPayout} coins! 🎉 (2.5x Payout)`;
-    resultText.className = "game-status-text text-green";
-  } else {
-    await updateDoc(doc(db, "users", currentUser.uid), { 
-      balance: userData.balance - bet,
-      wagered: increment(bet)
-    });
-    resultText.innerText = `Rolled ${roll}. You lost ${bet} coins.`;
+
+    if (won) {
+      const totalPayout = Math.floor(bet * multiplier);
+      resultText.innerText = `Rolled ${roll}! You won ${totalPayout} coins! 🎉 (2.5x Payout)`;
+      resultText.className = "game-status-text text-green";
+    } else {
+      resultText.innerText = `Rolled ${roll}. You lost ${bet} coins.`;
+      resultText.className = "game-status-text text-red";
+    }
+  } catch (err) {
+    resultText.innerText = `Error: ${err.message}`;
     resultText.className = "game-status-text text-red";
   }
 };
@@ -277,7 +326,6 @@ window.startBlackjack = async () => {
     return;
   }
 
-  // Determine hand probability
   const winChance = getWinChance(bjBetAmount);
   bjIsForcedLoss = Math.random() >= winChance;
 
@@ -288,7 +336,6 @@ window.startBlackjack = async () => {
   bjDeck = createDeck();
   
   if (bjIsForcedLoss) {
-    // Deal a weaker starting hand (e.g., 14, 15, or 16)
     playerHand = [{ value: '10', suit: '♠' }, { value: '5', suit: '♥' }];
     dealerHand = [{ value: '10', suit: '♦' }, { value: '9', suit: '♣' }];
   } else {
@@ -304,14 +351,21 @@ window.startBlackjack = async () => {
 
   if (calculateHand(playerHand) === 21) {
     const payout = Math.floor(bjBetAmount * 1.5);
-    await updateDoc(doc(db, "users", currentUser.uid), { balance: userData.balance + payout });
+    await runTransaction(db, async (t) => {
+      const userRef = doc(db, "users", currentUser.uid);
+      const poolRef = doc(db, "settings", "housePool");
+      const uDoc = await t.get(userRef);
+      const pDoc = await t.get(poolRef);
+
+      t.update(userRef, { balance: uDoc.data().balance + payout });
+      t.update(poolRef, { poolBalance: pDoc.data().poolBalance - payout });
+    });
     endBJ(`Blackjack! You won ${payout} coins! 🎉`, 'text-green');
   }
 };
 
 window.hitBlackjack = async () => {
   if (bjIsForcedLoss && calculateHand(playerHand) >= 15) {
-    // Force a bust card if target loss flag is active
     playerHand.push({ value: '10', suit: '♠' });
   } else {
     playerHand.push(bjDeck.pop());
@@ -320,7 +374,15 @@ window.hitBlackjack = async () => {
   renderBJ();
   
   if (calculateHand(playerHand) > 21) {
-    await updateDoc(doc(db, "users", currentUser.uid), { balance: userData.balance - bjBetAmount });
+    await runTransaction(db, async (t) => {
+      const userRef = doc(db, "users", currentUser.uid);
+      const poolRef = doc(db, "settings", "housePool");
+      const uDoc = await t.get(userRef);
+      const pDoc = await t.get(poolRef);
+
+      t.update(userRef, { balance: uDoc.data().balance - bjBetAmount });
+      t.update(poolRef, { poolBalance: pDoc.data().poolBalance + bjBetAmount });
+    });
     endBJ(`Bust! You lost ${bjBetAmount} coins.`, 'text-red');
   }
 };
@@ -334,12 +396,28 @@ window.standBlackjack = async () => {
   const pScore = calculateHand(playerHand), dScore = calculateHand(dealerHand);
   
   if (dScore > 21 || pScore > dScore) {
-    await updateDoc(doc(db, "users", currentUser.uid), { balance: userData.balance + bjBetAmount });
+    await runTransaction(db, async (t) => {
+      const userRef = doc(db, "users", currentUser.uid);
+      const poolRef = doc(db, "settings", "housePool");
+      const uDoc = await t.get(userRef);
+      const pDoc = await t.get(poolRef);
+
+      t.update(userRef, { balance: uDoc.data().balance + bjBetAmount });
+      t.update(poolRef, { poolBalance: pDoc.data().poolBalance - bjBetAmount });
+    });
     endBJ(`You win ${bjBetAmount} coins! 🎉`, 'text-green');
   } else if (pScore === dScore) {
     endBJ(`Push! Your bet was returned.`, 'text-blue');
   } else {
-    await updateDoc(doc(db, "users", currentUser.uid), { balance: userData.balance - bjBetAmount });
+    await runTransaction(db, async (t) => {
+      const userRef = doc(db, "users", currentUser.uid);
+      const poolRef = doc(db, "settings", "housePool");
+      const uDoc = await t.get(userRef);
+      const pDoc = await t.get(poolRef);
+
+      t.update(userRef, { balance: uDoc.data().balance - bjBetAmount });
+      t.update(poolRef, { poolBalance: pDoc.data().poolBalance + bjBetAmount });
+    });
     endBJ(`Dealer wins. You lost ${bjBetAmount} coins.`, 'text-red');
   }
 };
@@ -644,6 +722,23 @@ function loadAdminPanel() {
   });
 }
 
+// House Pool Save Handler
+document.getElementById("btn-save-pool")?.addEventListener("click", async () => {
+  const poolBalance = parseFloat(document.getElementById("input-house-pool").value);
+  const maxLossLimit = parseFloat(document.getElementById("input-max-loss").value);
+
+  if (isNaN(poolBalance) || isNaN(maxLossLimit)) {
+    return alert("Please enter valid numeric values for both fields.");
+  }
+
+  try {
+    await setDoc(doc(db, "settings", "housePool"), { poolBalance, maxLossLimit }, { merge: true });
+    alert("House Reserve Pool settings updated successfully!");
+  } catch (err) {
+    alert(`Error updating settings: ${err.message}`);
+  }
+});
+
 // Open User Stats / Wager Modal
 window.viewUserStats = (uid, username, email, balance, wagered) => {
   document.getElementById("stats-username").innerText = `${username}'s Profile`;
@@ -657,13 +752,11 @@ document.getElementById("btn-close-stats")?.addEventListener("click", () => {
   document.getElementById("user-stats-modal").classList.add("hidden");
 });
 
-// Admin Tip Action
 window.openAdminTip = (username) => {
   document.getElementById("tip-recipient").value = username;
   document.getElementById("tip-modal").classList.remove("hidden");
 };
 
-// Admin Deduct Balance Action
 window.deductUserBalance = async (uid, username, currentBalance) => {
   const amountStr = prompt(`Enter number of coins to deduct from ${username}:`);
   if (!amountStr) return;
