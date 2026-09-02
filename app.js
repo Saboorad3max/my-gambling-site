@@ -59,7 +59,7 @@ function listenForTipNotifications() {
   });
 }
 
-// Helper function to calculate target win probability based on house pool status (50% win chance across all games while house pool has balance)[cite: 4]
+// Helper function to calculate target win probability based on house pool status (50% win chance across all games while house pool has balance)
 function getWinChance(bet) {
   if (housePoolData.poolBalance <= 0) {
     return 0; 
@@ -165,7 +165,6 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById("display-user").innerText = userData.username;
         document.getElementById("display-balance").innerText = userData.balance;
 
-        // Render rakeback panel dynamically on data sync
         renderRewardsPanel();
 
         if (userData.isAdmin || currentUser.email.toLowerCase() === "saboorezz@gmail.com") {
@@ -229,7 +228,7 @@ window.closeGame = () => {
 
 // --- 3D ANIMATED COINFLIP ---
 window.play3DCoinflip = async (choice) => {
-  if (isGameProcessing) return[cite: 4];
+  if (isGameProcessing) return;
   
   const betInput = document.getElementById("coinflip-bet");
   const bet = parseInt(betInput.value);
@@ -291,7 +290,7 @@ window.play3DCoinflip = async (choice) => {
 
 // --- DICE GAME ---
 window.playDice = async () => {
-  if (isGameProcessing) return[cite: 4];
+  if (isGameProcessing) return;
 
   const bet = parseInt(document.getElementById("dice-bet").value);
   const target = document.getElementById("dice-target").value;
@@ -401,7 +400,7 @@ function endBJ(msg, colorClass) {
 }
 
 window.startBlackjack = async () => {
-  if (isGameProcessing) return[cite: 4];
+  if (isGameProcessing) return;
 
   bjBetAmount = parseInt(document.getElementById('bj-bet').value);
   const resultText = document.getElementById('bj-result');
@@ -880,7 +879,6 @@ function renderRewardsPanel() {
   const eligibleWager = currentWagered - (userRakeback.checkpointWager || 0);
   const eligibleLoss = currentLosses - (userRakeback.checkpointLoss || 0);
 
-  // Instant rakeback: 0.50% of all eligible wagered + 3% of eligible losses (if any)
   let calculatedReward = (eligibleWager * 0.005);
   if (eligibleLoss > 0) {
     calculatedReward += (eligibleLoss * 0.03);
@@ -911,22 +909,20 @@ function renderRewardsPanel() {
       claimBtn.style.cursor = "not-allowed";
       claimBtn.disabled = true;
     } else if (isUnlocked) {
-      claimBtn.style.background = "#10b981"; // Green when available
+      claimBtn.style.background = "#10b981"; 
       claimBtn.style.color = "#fff";
       claimBtn.style.cursor = "pointer";
       claimBtn.disabled = false;
     } else {
-      claimBtn.style.background = "#374151"; // Grey when locked
+      claimBtn.style.background = "#374151"; 
       claimBtn.style.color = "#9ca3af";
       claimBtn.style.cursor = "not-allowed";
       claimBtn.disabled = true;
     }
 
-    // Assign direct click event safely
     claimBtn.onclick = () => claimInstantRakeback();
   }
 
-  // --- DAILY RAKEBACK COMING SOON CONFIG ---
   const dailyBtn = document.getElementById("btn-claim-daily");
   const dailyStatusLabel = document.getElementById("daily-status-label");
 
@@ -935,7 +931,7 @@ function renderRewardsPanel() {
   }
 
   if (dailyBtn) {
-    dailyBtn.style.background = "#374151"; // Greyed out
+    dailyBtn.style.background = "#374151"; 
     dailyBtn.style.color = "#9ca3af";
     dailyBtn.style.cursor = "not-allowed";
     dailyBtn.disabled = true;
