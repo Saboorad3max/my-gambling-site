@@ -140,9 +140,10 @@ onAuthStateChanged(auth, async (user) => {
     loadStore();
     listenChat();
     listenForTipNotifications();
+    initLeaderboard();
   } else {
-    document.getElementById("auth-container").classList.remove("hidden");
-    document.getElementById("app-container").classList.add("hidden");
+    document.getElementById("auth-container").classList.add("hidden");
+    document.getElementById("app-container").classList.remove("hidden");
   }
 });
 
@@ -170,6 +171,144 @@ window.closeGame = () => {
   document.getElementById("games-lobby").classList.remove("hidden");
 };
 
+// --- DAILY LEADERBOARD SYSTEM ---
+function getDailyLeaderboardCycleId() {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${now.getUTCMonth() + 1}-${now.getUTCDate()}`;
+}
+
+function initLeaderboard() {
+  listenLeaderboardData();
+  startLeaderboardTimer();
+}
+
+function listenLeaderboardData() {
+  const currentCycle = getDailyLeaderboardCycleId();
+  const q = query(collection(db, "daily_leaderboard", currentCycle, "wagers"));
+
+  onSnapshot(q, (snapshot) => {
+    let players = [];
+    snapshot.forEach((docSnap) => {
+      players.push(docSnap.data());
+    });
+    
+    players.sort((a, b) => b.wagered - a.wagered);
+    renderLeaderboardUI(players);
+  });
+}
+
+function renderLeaderboardUI(players) {
+  const listEl = document.getElementById('leaderboard-list');
+  if (!listEl) return;
+  
+  const payouts = [175, 105, 70];
+  
+  listEl.innerHTML = players.slice(0, 10).map((p, index) => `
+    <div class="user-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; background: #111827; padding: 10px 14px; border-radius: 6px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span class="badge" style="background: ${index === 0 ? '#f59e0b' : index === 1 ? '#94a3b8' : index === 2 ? '#b45309' : '#374151'}; padding: 2px 8px; border-radius: 4px;">#${index + 1}</span>
+        <span style="font-weight: 600; color: #fff;">${p.username}</span>
+      </div>
+      <div style="display: flex; gap: 15px; align-items: center;">
+        <span class="text-blue" style="color: #3b82f6;">${p.wagered} Wagered</span>
+        <span class="text-green" style="color: #10b981; font-weight: bold;">${index < 3 ? '+' + payouts[index] + ' Coins' : ''}</span>
+      </div>
+    </div>
+  `).join('') || '<div style="color: #9ca3af; text-align: center; padding: 12px;">No wagers recorded yet today.</div>';
+}
+
+function startLeaderboardTimer() {
+  const timerEl = document.getElementById('leaderboard-timer');
+  if (!timerEl) return;
+  
+  setInterval(async () => {
+    const now = new Date();
+    const night = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
+    let diff = night - now;
+    
+    if (diff <= 0) {
+      await processDailyLeaderboardPayouts();
+      diff = 24 * 60 * 60 * 1000; 
+    }
+    
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    
+    timerEl.innerText = `Reset in: ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+  }, 1000);
+}
+
+async function processDailyLeaderboardPayouts() {
+  if (!currentUser) return; // Let any active client execute or coordinate if needed, or handle via deterministic collection check
+  
+  // To avoid duplicate payouts if multiple clients are open, we can check a payout lock doc or let the admin/first client process it safely
+  const currentCycle = getDailyLeaderboardCycleId();
+  const lockRef = doc(db, "daily_leaderboard_locks", currentCycle);
+  
+  try {
+    await runTransaction(db, async (transaction) => {
+      const lockDoc = await transaction.get(lockRef);
+      if (lockDoc.exists() && lockDoc.data().processed) {
+        return; // Already processed by another client/process
+      }
+
+      const wagersQuery = query(collection(db, "daily_leaderboard", currentCycle, "wagers"));
+      const wagersSnapshot = await getDocs(wagersQuery);
+      
+      let players = [];
+      wagersSnapshot.forEach((d) => {
+        players.push({ id: d.id, ...d.data() });
+      });
+
+      if (players.length > 0) {
+        players.sort((a, b) => b.wagered - a.wagered);
+        const payouts = [175, 105, 70];
+
+        for (let i = 0; i < Math.min(3, players.length); i++) {
+          const topPlayer = players[i];
+          const prize = payouts[i];
+          const userRef = doc(db, "users", topPlayer.userId);
+          const userDoc = await transaction.get(userRef);
+          
+          if (userDoc.exists()) {
+            transaction.update(userRef, { balance: userDoc.data().balance + prize });
+          }
+        }
+      }
+
+      transaction.set(lockRef, { processed: true, timestamp: serverTimestamp() });
+    });
+  } catch (err) {
+    console.error("Leaderboard payout error:", err);
+  }
+}
+
+async function trackLeaderboardWager(betAmount) {
+  if (!currentUser || !userData) return;
+  const currentCycle = getDailyLeaderboardCycleId();
+  const wagerRef = doc(db, "daily_leaderboard", currentCycle, "wagers", currentUser.uid);
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const wagerDoc = await transaction.get(wagerRef);
+      if (wagerDoc.exists()) {
+        transaction.update(wagerRef, {
+          wagered: wagerDoc.data().wagered + betAmount
+        });
+      } else {
+        transaction.set(wagerRef, {
+          userId: currentUser.uid,
+          username: userData.username,
+          wagered: betAmount
+        });
+      }
+    });
+  } catch (err) {
+    console.error("Error tracking leaderboard wager:", err);
+  }
+}
+
 // --- 3D ANIMATED COINFLIP ---
 window.play3DCoinflip = async (choice) => {
   if (isGameProcessing) return;
@@ -188,7 +327,7 @@ window.play3DCoinflip = async (choice) => {
   coin.style.transition = "none";
   coin.className = "coin";
   void coin.offsetWidth;
-  coin.style.transition = "transform 3s cubic-bezier(0.15, 0.85, 0.35, 1.2)";
+  coin.style.transition = "transform 3.8s cubic-bezier(0.15, 0.85, 0.35, 1.2)";
 
   const winChance = getWinChance(bet);
   const won = Math.random() < winChance;
@@ -213,6 +352,18 @@ window.play3DCoinflip = async (choice) => {
       await updateDoc(poolRef, {
         poolBalance: increment(-netChange)
       });
+
+      await trackLeaderboardWager(bet);
+
+      // Milestone tracking sync update
+      const currentCycleId = getThreeDayCycleId();
+      let milestoneData = userData.milestones || { cycleId: currentCycleId, wageredInCycle: 0, claimedTiers: [] };
+      if (milestoneData.cycleId !== currentCycleId) {
+        milestoneData = { cycleId: currentCycleId, wageredInCycle: 0, claimedTiers: [] };
+      }
+      milestoneData.wageredInCycle += bet;
+      await updateDoc(userRef, { milestones: milestoneData });
+      renderMilestoneRewards(milestoneData);
 
       if (won) {
         resultText.innerText = `🎉 You Won! Flipped ${outcome.toUpperCase()}. (+${bet} coins)`;
@@ -279,6 +430,17 @@ window.playDice = async () => {
     await updateDoc(poolRef, {
       poolBalance: increment(-netChange)
     });
+
+    await trackLeaderboardWager(bet);
+
+    const currentCycleId = getThreeDayCycleId();
+    let milestoneData = userData.milestones || { cycleId: currentCycleId, wageredInCycle: 0, claimedTiers: [] };
+    if (milestoneData.cycleId !== currentCycleId) {
+      milestoneData = { cycleId: currentCycleId, wageredInCycle: 0, claimedTiers: [] };
+    }
+    milestoneData.wageredInCycle += bet;
+    await updateDoc(userRef, { milestones: milestoneData });
+    renderMilestoneRewards(milestoneData);
 
     if (won) {
       const totalPayout = Math.floor(bet * multiplier);
@@ -355,9 +517,21 @@ window.startBlackjack = async () => {
   const winChance = getWinChance(bjBetAmount);
   bjIsForcedLoss = Math.random() >= winChance;
 
-  await updateDoc(doc(db, "users", currentUser.uid), {
+  const userRef = doc(db, "users", currentUser.uid);
+  await updateDoc(userRef, {
     wagered: increment(bjBetAmount)
   });
+
+  await trackLeaderboardWager(bjBetAmount);
+
+  const currentCycleId = getThreeDayCycleId();
+  let milestoneData = userData.milestones || { cycleId: currentCycleId, wageredInCycle: 0, claimedTiers: [] };
+  if (milestoneData.cycleId !== currentCycleId) {
+    milestoneData = { cycleId: currentCycleId, wageredInCycle: 0, claimedTiers: [] };
+  }
+  milestoneData.wageredInCycle += bjBetAmount;
+  await updateDoc(userRef, { milestones: milestoneData });
+  renderMilestoneRewards(milestoneData);
 
   bjDeck = createDeck();
   
@@ -377,7 +551,7 @@ window.startBlackjack = async () => {
 
   if (calculateHand(playerHand) === 21 && !bjIsForcedLoss) {
     const payout = Math.floor(bjBetAmount * 1.5);
-    await updateDoc(doc(db, "users", currentUser.uid), { balance: increment(payout) });
+    await updateDoc(userRef, { balance: increment(payout) });
     await updateDoc(doc(db, "settings", "housePool"), { poolBalance: increment(-payout) });
     endBJ(`Blackjack! You won ${payout} coins! 🎉`, 'text-green');
   }
@@ -484,24 +658,20 @@ document.getElementById("btn-confirm-tip")?.addEventListener("click", async () =
 
     const targetDoc = snap.docs[0];
 
-    // Balance update adjustments
     if (!isAdmin) {
       await updateDoc(doc(db, "users", currentUser.uid), { balance: increment(-amount) });
     }
     await updateDoc(doc(db, "users", targetDoc.id), { balance: increment(amount) });
 
-    // Broadcast message construction for all users / global toast feed
     const tipMsg = isAdmin 
       ? `Admin tipped ${amount} coins to ${recipientName}` 
       : `${userData.username} tipped ${amount} coins to ${recipientName}`;
 
-    // Write to Firestore using serverTimestamp() so every connected client triggers the snapshot listener properly
     await addDoc(collection(db, "tip_notifications"), {
       message: tipMsg,
       timestamp: serverTimestamp()
     });
 
-    // Immediate confirmation feedback toast for the person performing the action (sender or admin)
     showTipNotification(isAdmin ? `Successfully added ${amount} coins to ${recipientName}` : `You tipped ${amount} coins to ${recipientName}`);
 
     document.getElementById("tip-modal")?.classList.add("hidden");
