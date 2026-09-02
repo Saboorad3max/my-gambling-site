@@ -149,51 +149,46 @@
     </section>
 
     <section id="tab-rewards" class="tab-content">
-      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
-        <!-- Gift Box Icon -->
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7;"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
-        <h2 style="margin: 0; color: #ffffff; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em;">Your Rewards</h2>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7;"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
+        <h2 class="panel-title" style="margin: 0; color: #fff; font-size: 1.25rem;">Your rewards</h2>
       </div>
 
-      <div class="games-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+      <div class="games-grid">
         <!-- Instant Rakeback Card -->
-        <div class="game-card" style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; display: flex; flex-direction: column; justify-content: space-between; text-align: left; height: auto; cursor: default; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px;">
-            <span style="color: #ffffff; font-size: 1rem; font-weight: 600; padding-right: 12px;">Wager to Unlock</span>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7; flex-shrink: 0;"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
-          </div>
-          
-          <div style="text-align: center; margin: 10px 0 32px 0;">
-            <div style="margin-bottom: 16px; display: inline-flex; padding: 16px; background: rgba(168, 85, 247, 0.08); border-radius: 50%;">
-              <!-- Gift Box SVG matching Daily Rakeback -->
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7;"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
-            </div>
-            <h3 style="color: #ffffff; margin: 0; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em;">Instant Rakeback</h3>
-          </div>
-
+        <div class="game-card" style="display: flex; flex-direction: column; justify-content: space-between; text-align: left; height: auto; cursor: default; padding: 16px;">
           <div>
-            <div id="instant-amount-display" style="color: #10b981; font-size: 1rem; font-weight: bold; text-align: center; margin-bottom: 12px; display: none;">0 Coins</div>
-            <button id="btn-claim-instant" style="width: 100%; background: #374151; color: #9ca3af; border: none; padding: 14px; border-radius: 12px; cursor: not-allowed; font-weight: 600; font-size: 1rem; transition: background 0.2s;" disabled>Claim</button>
+            <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 12px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7;"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
+            </div>
+            <div style="text-align: center; margin: 4px 0 20px 0;">
+              <div style="margin-bottom: 10px; display: inline-flex; padding: 10px; background: rgba(168, 85, 247, 0.1); border-radius: 50%;">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7;"><path d="M3 3h18v18H3zM12 8v8m-4-4h8"/></svg>
+              </div>
+              <h3 style="color: #fff; margin: 0; font-size: 1.1rem; font-weight: 600;">Instant Rakeback</h3>
+            </div>
+          </div>
+          <div>
+            <div id="instant-amount-display" style="color: #10b981; font-size: 1rem; font-weight: bold; text-align: center; margin-bottom: 10px; display: none;">0 Coins</div>
+            <button id="btn-claim-instant" style="width: 100%; background: #374151; color: #9ca3af; border: none; padding: 10px; border-radius: 8px; cursor: not-allowed; font-weight: bold; font-size: 0.9rem;" disabled>Claim</button>
           </div>
         </div>
 
         <!-- Daily Rakeback Card -->
-        <div class="game-card" style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; display: flex; flex-direction: column; justify-content: space-between; text-align: left; height: auto; cursor: default; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px;">
-            <span style="color: #ffffff; font-size: 1rem; font-weight: 600; padding-right: 12px;">Claim Soon!</span>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7; flex-shrink: 0;"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
-          </div>
-          
-          <div style="text-align: center; margin: 10px 0 32px 0;">
-            <div style="margin-bottom: 16px; display: inline-flex; padding: 16px; background: rgba(168, 85, 247, 0.08); border-radius: 50%;">
-              <!-- Chest / Gift Box SVG -->
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7;"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
-            </div>
-            <h3 style="color: #ffffff; margin: 0; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em;">Daily Rakeback</h3>
-          </div>
-
+        <div class="game-card" style="display: flex; flex-direction: column; justify-content: space-between; text-align: left; height: auto; cursor: default; padding: 16px;">
           <div>
-            <button id="btn-claim-daily" style="width: 100%; background: #374151; color: #9ca3af; border: none; padding: 14px; border-radius: 12px; cursor: not-allowed; font-weight: 600; font-size: 1rem;" disabled>Coming Soon</button>
+            <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 12px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7;"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
+            </div>
+            <div style="text-align: center; margin: 4px 0 20px 0;">
+              <div style="margin-bottom: 10px; display: inline-flex; padding: 10px; background: rgba(168, 85, 247, 0.1); border-radius: 50%;">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+              </div>
+              <h3 style="color: #fff; margin: 0; font-size: 1.1rem; font-weight: 600;">Daily Rakeback</h3>
+            </div>
+          </div>
+          <div>
+            <button id="btn-claim-daily" style="width: 100%; background: #374151; color: #9ca3af; border: none; padding: 10px; border-radius: 8px; cursor: not-allowed; font-weight: bold; font-size: 0.9rem;" disabled>Coming Soon</button>
           </div>
         </div>
       </div>
@@ -288,7 +283,7 @@
       </div>
       <div class="modal-actions" style="display: flex; gap: 10px;">
         <button id="btn-save-item" class="btn-game" style="background: #059669; color: #fff; flex: 1;">Save</button>
-        <button id="btn-close-item-modal" class="btn-secondary" style="flex: 1;">Cancel / Close</button>
+        <button id="btn-close-item-modal" class="btn-secondary" style="flex: 1;">Cancel</button>
       </div>
     </div>
   </div>
