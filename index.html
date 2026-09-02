@@ -62,6 +62,11 @@
             <div class="card-icon">🃏</div>
             <div class="card-title">BLACKJACK</div>
           </div>
+          <div class="game-card" data-game="roulette">
+            <div class="card-badge">ORIGINAL</div>
+            <div class="card-icon">🎡</div>
+            <div class="card-title">ROULETTE</div>
+          </div>
         </div>
       </div>
 
@@ -135,6 +140,23 @@
             </div>
           </div>
           <p id="bj-result" class="game-status-text"></p>
+        </div>
+      </div>
+
+      <div id="game-stage-roulette" class="game-stage hidden">
+        <button id="btn-back-roulette" class="btn-back">← Back to Games</button>
+        <div class="game-container">
+          <h3 class="panel-title">Roulette</h3>
+          <div id="roulette-display" style="font-size: 3rem; margin: 12px 0;">🎡</div>
+          <div class="bet-controls">
+            <input type="number" id="roulette-bet" class="coin-input" placeholder="Bet Amount" min="1" max="50">
+            <div class="game-buttons" style="margin-top: 8px;">
+              <button id="btn-roulette-red" class="btn-game" style="background: #dc2626; color: #fff;">Red (2x)</button>
+              <button id="btn-roulette-black" class="btn-game" style="background: #1f2937; color: #fff;">Black (2x)</button>
+              <button id="btn-roulette-green" class="btn-game" style="background: #059669; color: #fff;">Green (14x)</button>
+            </div>
+          </div>
+          <p id="roulette-result" class="game-status-text"></p>
         </div>
       </div>
     </section>
