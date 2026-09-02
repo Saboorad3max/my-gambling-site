@@ -908,29 +908,41 @@ function renderRewardsPanel() {
   }
 
   if (claimBtn) {
-    // Keep button disabled if a claim transaction is currently processing
-    if (isUnlocked && !isClaimProcessing) {
+    if (isUnlocked) {
       claimBtn.style.background = "#10b981"; // Green when available
       claimBtn.style.color = "#fff";
       claimBtn.style.cursor = "pointer";
       claimBtn.disabled = false;
     } else {
-      claimBtn.style.background = "#374151"; // Grey when locked or processing
+      claimBtn.style.background = "#374151"; // Grey when locked
       claimBtn.style.color = "#9ca3af";
       claimBtn.style.cursor = "not-allowed";
       claimBtn.disabled = true;
     }
 
     // Assign direct click event safely
-    claimBtn.onclick = () => claimInstantRakeback(calculatedReward);
+    claimBtn.onclick = () => claimInstantRakeback(calculatedReward, currentWagered, currentLosses);
+  }
+
+  // --- DAILY RAKEBACK COMING SOON CONFIG ---
+  const dailyBtn = document.getElementById("btn-claim-daily");
+  const dailyStatusLabel = document.getElementById("daily-status-label");
+
+  if (dailyStatusLabel) {
+    dailyStatusLabel.innerText = "Claim Soon!";
+  }
+
+  if (dailyBtn) {
+    dailyBtn.style.background = "#374151"; // Greyed out
+    dailyBtn.style.color = "#9ca3af";
+    dailyBtn.style.cursor = "not-allowed";
+    dailyBtn.disabled = true;
+    dailyBtn.innerText = "Coming Soon";
   }
 }
 
-window.claimInstantRakeback = async (rewardAmount) => {
-  if (!currentUser || rewardAmount <= 0 || isClaimProcessing) return;
-
-  isClaimProcessing = true;
-  renderRewardsPanel(); // Immediately grays out the button
+window.claimInstantRakeback = async (rewardAmount, currentWagered, currentLosses) => {
+  if (!currentUser || rewardAmount <= 0) return;
 
   const userRef = doc(db, "users", currentUser.uid);
 
@@ -943,33 +955,20 @@ window.claimInstantRakeback = async (rewardAmount) => {
       const currentWager = data.wagered || 0;
       const currentLoss = data.totalLosses || 0;
 
-      // Double-check inside transaction bounds to ensure no stale reward gets claimed twice
-      const lastRakeback = data.rakeback || { checkpointWager: 0, checkpointLoss: 0 };
-      const freshEligibleWager = currentWager - lastRakeback.checkpointWager;
-      const freshEligibleLoss = currentLoss - lastRakeback.checkpointLoss;
-      
-      let freshReward = (freshEligibleWager * 0.005);
-      if (freshEligibleLoss > 0) freshReward += (freshEligibleLoss * 0.03);
-      freshReward = Math.floor(freshReward);
-
-      if (freshReward <= 0) throw new Error("No reward available to claim!");
-
       const updatedRakeback = {
         checkpointWager: currentWager,
         checkpointLoss: currentLoss
       };
 
       t.update(userRef, {
-        balance: increment(freshReward),
+        balance: increment(rewardAmount),
         rakeback: updatedRakeback
       });
     });
 
-    alert(`Successfully claimed instant rakeback!`);
+    alert(`Successfully claimed ${rewardAmount} coins instant rakeback!`);
+    renderRewardsPanel();
   } catch (err) {
     alert(err.message);
-  } finally {
-    isClaimProcessing = false;
-    renderRewardsPanel();
   }
 };
