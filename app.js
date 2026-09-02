@@ -229,7 +229,7 @@ window.closeGame = () => {
 
 // --- 3D ANIMATED COINFLIP ---
 window.play3DCoinflip = async (choice) => {
-  if (isGameProcessing) return; 
+  if (isGameProcessing) return;
   const betInput = document.getElementById("coinflip-bet");
   const bet = parseInt(betInput.value);
   const resultText = document.getElementById("coinflip-result");
