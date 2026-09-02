@@ -60,15 +60,70 @@ function listenForTipNotifications() {
 
 // Helper function to calculate target win probability based on bet amount & house pool status
 function getWinChance(bet) {
-  // HARD RECOVERY LOCK: 100% loss rate when house hits max loss limit
   if (housePoolData.poolBalance <= -housePoolData.maxLossLimit) {
     return 0; 
   }
 
-  // Normal odds when house pool is safe
-  if (bet < 10) return 0.40;       // Less than 10c -> 40%
-  if (bet > 20) return 0.25;       // More than 20c -> 25%
-  return 0.30;                     // Between 10c and 20c (inclusive) -> 30%
+  if (bet < 10) return 0.40;       
+  if (bet > 20) return 0.25;       
+  return 0.30;                     
+}
+
+// --- DAILY WAGER LEADERBOARD LOGIC ---
+function startLeaderboardTimer() {
+  const timerEl = document.getElementById('leaderboard-timer');
+  if (!timerEl) return;
+
+  const updateTimer = async () => {
+    const now = new Date();
+    const night = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
+    let diff = night - now;
+
+    if (diff <= 0) {
+      diff = 24 * 60 * 60 * 1000; 
+    }
+
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    timerEl.innerText = `Reset in: ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+  };
+
+  updateTimer();
+  setInterval(updateTimer, 1000);
+}
+
+function listenForLeaderboard() {
+  const q = query(collection(db, "users"), orderBy("wagered", "desc"), limit(10));
+  
+  onSnapshot(q, (snapshot) => {
+    const container = document.getElementById("leaderboard-list");
+    if (!container) return;
+    
+    container.innerHTML = "";
+    
+    if (snapshot.empty) {
+      container.innerHTML = `<div style="color: #9ca3af; text-align: center; padding: 12px;">No wagers recorded yet.</div>`;
+      return;
+    }
+
+    let rank = 1;
+    snapshot.forEach((docSnap) => {
+      const uData = docSnap.data();
+      const wagerVal = uData.wagered || 0;
+
+      const row = document.createElement("div");
+      row.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: #111827; padding: 10px 14px; border-radius: 6px; margin-bottom: 6px;";
+      
+      row.innerHTML = `
+        <span style="color: #fff;"><strong>#${rank}</strong> ${uData.username || "Anonymous"}</span>
+        <span style="color: #3b82f6; font-weight: bold;">${wagerVal} Wagered</span>
+      `;
+      container.appendChild(row);
+      rank++;
+    });
+  });
 }
 
 // --- AUTHENTICATION ---
@@ -119,7 +174,6 @@ onAuthStateChanged(auth, async (user) => {
       }
     });
 
-    // Sync House Reserve Metrics
     onSnapshot(doc(db, "settings", "housePool"), (docSnap) => {
       if (docSnap.exists()) {
         housePoolData = docSnap.data();
@@ -140,10 +194,11 @@ onAuthStateChanged(auth, async (user) => {
     loadStore();
     listenChat();
     listenForTipNotifications();
-    initLeaderboard();
+    startLeaderboardTimer();
+    listenForLeaderboard();
   } else {
-    document.getElementById("auth-container").classList.add("hidden");
-    document.getElementById("app-container").classList.remove("hidden");
+    document.getElementById("auth-container").classList.remove("hidden");
+    document.getElementById("app-container").classList.add("hidden");
   }
 });
 
@@ -171,144 +226,6 @@ window.closeGame = () => {
   document.getElementById("games-lobby").classList.remove("hidden");
 };
 
-// --- DAILY LEADERBOARD SYSTEM ---
-function getDailyLeaderboardCycleId() {
-  const now = new Date();
-  return `${now.getUTCFullYear()}-${now.getUTCMonth() + 1}-${now.getUTCDate()}`;
-}
-
-function initLeaderboard() {
-  listenLeaderboardData();
-  startLeaderboardTimer();
-}
-
-function listenLeaderboardData() {
-  const currentCycle = getDailyLeaderboardCycleId();
-  const q = query(collection(db, "daily_leaderboard", currentCycle, "wagers"));
-
-  onSnapshot(q, (snapshot) => {
-    let players = [];
-    snapshot.forEach((docSnap) => {
-      players.push(docSnap.data());
-    });
-    
-    players.sort((a, b) => b.wagered - a.wagered);
-    renderLeaderboardUI(players);
-  });
-}
-
-function renderLeaderboardUI(players) {
-  const listEl = document.getElementById('leaderboard-list');
-  if (!listEl) return;
-  
-  const payouts = [175, 105, 70];
-  
-  listEl.innerHTML = players.slice(0, 10).map((p, index) => `
-    <div class="user-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; background: #111827; padding: 10px 14px; border-radius: 6px;">
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span class="badge" style="background: ${index === 0 ? '#f59e0b' : index === 1 ? '#94a3b8' : index === 2 ? '#b45309' : '#374151'}; padding: 2px 8px; border-radius: 4px;">#${index + 1}</span>
-        <span style="font-weight: 600; color: #fff;">${p.username}</span>
-      </div>
-      <div style="display: flex; gap: 15px; align-items: center;">
-        <span class="text-blue" style="color: #3b82f6;">${p.wagered} Wagered</span>
-        <span class="text-green" style="color: #10b981; font-weight: bold;">${index < 3 ? '+' + payouts[index] + ' Coins' : ''}</span>
-      </div>
-    </div>
-  `).join('') || '<div style="color: #9ca3af; text-align: center; padding: 12px;">No wagers recorded yet today.</div>';
-}
-
-function startLeaderboardTimer() {
-  const timerEl = document.getElementById('leaderboard-timer');
-  if (!timerEl) return;
-  
-  setInterval(async () => {
-    const now = new Date();
-    const night = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
-    let diff = night - now;
-    
-    if (diff <= 0) {
-      await processDailyLeaderboardPayouts();
-      diff = 24 * 60 * 60 * 1000; 
-    }
-    
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-    
-    timerEl.innerText = `Reset in: ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
-  }, 1000);
-}
-
-async function processDailyLeaderboardPayouts() {
-  if (!currentUser) return; // Let any active client execute or coordinate if needed, or handle via deterministic collection check
-  
-  // To avoid duplicate payouts if multiple clients are open, we can check a payout lock doc or let the admin/first client process it safely
-  const currentCycle = getDailyLeaderboardCycleId();
-  const lockRef = doc(db, "daily_leaderboard_locks", currentCycle);
-  
-  try {
-    await runTransaction(db, async (transaction) => {
-      const lockDoc = await transaction.get(lockRef);
-      if (lockDoc.exists() && lockDoc.data().processed) {
-        return; // Already processed by another client/process
-      }
-
-      const wagersQuery = query(collection(db, "daily_leaderboard", currentCycle, "wagers"));
-      const wagersSnapshot = await getDocs(wagersQuery);
-      
-      let players = [];
-      wagersSnapshot.forEach((d) => {
-        players.push({ id: d.id, ...d.data() });
-      });
-
-      if (players.length > 0) {
-        players.sort((a, b) => b.wagered - a.wagered);
-        const payouts = [175, 105, 70];
-
-        for (let i = 0; i < Math.min(3, players.length); i++) {
-          const topPlayer = players[i];
-          const prize = payouts[i];
-          const userRef = doc(db, "users", topPlayer.userId);
-          const userDoc = await transaction.get(userRef);
-          
-          if (userDoc.exists()) {
-            transaction.update(userRef, { balance: userDoc.data().balance + prize });
-          }
-        }
-      }
-
-      transaction.set(lockRef, { processed: true, timestamp: serverTimestamp() });
-    });
-  } catch (err) {
-    console.error("Leaderboard payout error:", err);
-  }
-}
-
-async function trackLeaderboardWager(betAmount) {
-  if (!currentUser || !userData) return;
-  const currentCycle = getDailyLeaderboardCycleId();
-  const wagerRef = doc(db, "daily_leaderboard", currentCycle, "wagers", currentUser.uid);
-
-  try {
-    await runTransaction(db, async (transaction) => {
-      const wagerDoc = await transaction.get(wagerRef);
-      if (wagerDoc.exists()) {
-        transaction.update(wagerRef, {
-          wagered: wagerDoc.data().wagered + betAmount
-        });
-      } else {
-        transaction.set(wagerRef, {
-          userId: currentUser.uid,
-          username: userData.username,
-          wagered: betAmount
-        });
-      }
-    });
-  } catch (err) {
-    console.error("Error tracking leaderboard wager:", err);
-  }
-}
-
 // --- 3D ANIMATED COINFLIP ---
 window.play3DCoinflip = async (choice) => {
   if (isGameProcessing) return;
@@ -327,7 +244,7 @@ window.play3DCoinflip = async (choice) => {
   coin.style.transition = "none";
   coin.className = "coin";
   void coin.offsetWidth;
-  coin.style.transition = "transform 3.8s cubic-bezier(0.15, 0.85, 0.35, 1.2)";
+  coin.style.transition = "transform 3s cubic-bezier(0.15, 0.85, 0.35, 1.2)";
 
   const winChance = getWinChance(bet);
   const won = Math.random() < winChance;
@@ -352,18 +269,6 @@ window.play3DCoinflip = async (choice) => {
       await updateDoc(poolRef, {
         poolBalance: increment(-netChange)
       });
-
-      await trackLeaderboardWager(bet);
-
-      // Milestone tracking sync update
-      const currentCycleId = getThreeDayCycleId();
-      let milestoneData = userData.milestones || { cycleId: currentCycleId, wageredInCycle: 0, claimedTiers: [] };
-      if (milestoneData.cycleId !== currentCycleId) {
-        milestoneData = { cycleId: currentCycleId, wageredInCycle: 0, claimedTiers: [] };
-      }
-      milestoneData.wageredInCycle += bet;
-      await updateDoc(userRef, { milestones: milestoneData });
-      renderMilestoneRewards(milestoneData);
 
       if (won) {
         resultText.innerText = `🎉 You Won! Flipped ${outcome.toUpperCase()}. (+${bet} coins)`;
@@ -430,17 +335,6 @@ window.playDice = async () => {
     await updateDoc(poolRef, {
       poolBalance: increment(-netChange)
     });
-
-    await trackLeaderboardWager(bet);
-
-    const currentCycleId = getThreeDayCycleId();
-    let milestoneData = userData.milestones || { cycleId: currentCycleId, wageredInCycle: 0, claimedTiers: [] };
-    if (milestoneData.cycleId !== currentCycleId) {
-      milestoneData = { cycleId: currentCycleId, wageredInCycle: 0, claimedTiers: [] };
-    }
-    milestoneData.wageredInCycle += bet;
-    await updateDoc(userRef, { milestones: milestoneData });
-    renderMilestoneRewards(milestoneData);
 
     if (won) {
       const totalPayout = Math.floor(bet * multiplier);
@@ -517,21 +411,9 @@ window.startBlackjack = async () => {
   const winChance = getWinChance(bjBetAmount);
   bjIsForcedLoss = Math.random() >= winChance;
 
-  const userRef = doc(db, "users", currentUser.uid);
-  await updateDoc(userRef, {
+  await updateDoc(doc(db, "users", currentUser.uid), {
     wagered: increment(bjBetAmount)
   });
-
-  await trackLeaderboardWager(bjBetAmount);
-
-  const currentCycleId = getThreeDayCycleId();
-  let milestoneData = userData.milestones || { cycleId: currentCycleId, wageredInCycle: 0, claimedTiers: [] };
-  if (milestoneData.cycleId !== currentCycleId) {
-    milestoneData = { cycleId: currentCycleId, wageredInCycle: 0, claimedTiers: [] };
-  }
-  milestoneData.wageredInCycle += bjBetAmount;
-  await updateDoc(userRef, { milestones: milestoneData });
-  renderMilestoneRewards(milestoneData);
 
   bjDeck = createDeck();
   
@@ -551,7 +433,7 @@ window.startBlackjack = async () => {
 
   if (calculateHand(playerHand) === 21 && !bjIsForcedLoss) {
     const payout = Math.floor(bjBetAmount * 1.5);
-    await updateDoc(userRef, { balance: increment(payout) });
+    await updateDoc(doc(db, "users", currentUser.uid), { balance: increment(payout) });
     await updateDoc(doc(db, "settings", "housePool"), { poolBalance: increment(-payout) });
     endBJ(`Blackjack! You won ${payout} coins! 🎉`, 'text-green');
   }
@@ -904,7 +786,6 @@ function loadAdminPanel() {
   });
 }
 
-// House Pool Save Handler
 document.getElementById("btn-save-pool")?.addEventListener("click", async () => {
   const poolBalance = parseFloat(document.getElementById("input-house-pool").value);
   const maxLossLimit = parseFloat(document.getElementById("input-max-loss").value);
@@ -921,7 +802,6 @@ document.getElementById("btn-save-pool")?.addEventListener("click", async () => 
   }
 });
 
-// Open User Stats / Wager Modal
 window.viewUserStats = (uid, username, email, balance, wagered) => {
   document.getElementById("stats-username").innerText = `${username}'s Profile`;
   document.getElementById("stats-email").innerText = email;
@@ -988,48 +868,6 @@ function getThreeDayCycleId() {
   const now = new Date();
   const epochDays = Math.floor(now.getTime() / (1000 * 60 * 60 * 24));
   return Math.floor(epochDays / 3);
-}
-
-function renderMilestoneRewards(userMilestoneData) {
-  const container = document.getElementById("milestone-rewards-list");
-  if (!container) return;
-  container.innerHTML = "";
-
-  const currentCycle = getThreeDayCycleId();
-  const userCycle = userMilestoneData?.cycleId === currentCycle ? userMilestoneData : { cycleId: currentCycle, wageredInCycle: 0, claimedTiers: [] };
-  const currentWagered = userCycle.wageredInCycle;
-
-  MILESTONE_TIERS.forEach(tier => {
-    const isClaimed = userCycle.claimedTiers.includes(tier.id);
-    const isUnlocked = currentWagered >= tier.requiredWager;
-    
-    let btnText = "Locked";
-    let btnDisabled = true;
-    let btnClass = "btn-secondary";
-
-    if (isClaimed) {
-      btnText = "Claimed ✓";
-    } else if (isUnlocked) {
-      btnText = `Claim ${tier.reward} Coins`;
-      btnDisabled = false;
-      btnClass = "btn-primary";
-    }
-
-    const progressPercent = Math.min(100, Math.floor((currentWagered / tier.requiredWager) * 100));
-
-    container.innerHTML += `
-      <div class="game-card" style="margin-bottom: 12px; padding: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <h4 style="margin: 0; color: #fff;">${tier.label}</h4>
-          <span style="color: #3b82f6; font-weight: bold;">+${tier.reward} Tokens</span>
-        </div>
-        <p style="font-size: 13px; color: #9ca3af; margin-bottom: 8px;">Progress: ${currentWagered} / ${tier.requiredWager} (${progressPercent}%)</p>
-        <div style="background: #374151; height: 6px; border-radius: 3px; margin-bottom: 12px; overflow: hidden;">
-          <div style="background: #3b82f6; width: ${progressPercent}%; height: 100%;"></div>
-        </div>
-        <button class="${btnClass}" ${btnDisabled ? "disabled" : ""} onclick="claimMilestone(${tier.id}, ${tier.reward})">${btnText}</button>
-      </div>`;
-  });
 }
 
 window.claimMilestone = async (tierId, rewardAmount) => {
