@@ -328,7 +328,7 @@ window.playDice = async () => {
   const diceEmojis = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
   display.innerText = diceEmojis[roll];
 
-  const multiplier = 2.5;
+  const multiplier = 3;
   const netProfit = Math.floor(bet * multiplier) - bet;
   const netChange = won ? netProfit : -bet;
   const lossIncrement = !won ? bet : 0;
