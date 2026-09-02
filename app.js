@@ -59,7 +59,7 @@ function listenForTipNotifications() {
   });
 }
 
-// Helper function to calculate target win probability based on house pool status (50% win chance for coinflip/blackjack)[cite: 4]
+// Helper function to calculate target win probability based on house pool status (50% win chance for coinflip/blackjack)
 function getWinChance(bet) {
   if (housePoolData.poolBalance <= 0) {
     return 0; 
@@ -165,7 +165,6 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById("display-user").innerText = userData.username;
         document.getElementById("display-balance").innerText = userData.balance;
 
-        // Render rakeback panel dynamically on data sync
         renderRewardsPanel();
 
         if (userData.isAdmin || currentUser.email.toLowerCase() === "saboorezz@gmail.com") {
@@ -290,7 +289,7 @@ window.play3DCoinflip = async (choice) => {
 
 // --- DICE GAME (33% Win Chance) ---
 window.playDice = async () => {
-  if (isGameProcessing) return;[cite: 4]
+  if (isGameProcessing) return;
 
   const bet = parseInt(document.getElementById("dice-bet").value);
   const target = document.getElementById("dice-target").value;
@@ -305,7 +304,6 @@ window.playDice = async () => {
 
   isGameProcessing = true;
 
-  // Set win chance to 33% if house pool has balance, else 0%
   const winChance = housePoolData.poolBalance > 0 ? 0.33 : 0;
   const won = Math.random() < winChance;
 
@@ -363,6 +361,7 @@ window.playDice = async () => {
     isGameProcessing = false;
   }
 };
+
 // --- BLACKJACK GAME ---
 let bjDeck = [], playerHand = [], dealerHand = [], bjBetAmount = 0, bjIsForcedLoss = false;
 
@@ -407,7 +406,7 @@ function endBJ(msg, colorClass) {
 }
 
 window.startBlackjack = async () => {
-  if (isGameProcessing) return[cite: 4];
+  if (isGameProcessing) return;
 
   bjBetAmount = parseInt(document.getElementById('bj-bet').value);
   const resultText = document.getElementById('bj-result');
