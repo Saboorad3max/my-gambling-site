@@ -360,73 +360,30 @@ window.playDice = async () => {
   }
 };
 
-// --- ROULETTE GAME (10-Sec Window & Live Spin Animation) ---
-let rouletteTimer = null;
-let rouletteSecondsLeft = 10;
-let rouletteState = "idle"; 
-let rouletteBets = {}; 
+// --- ROULETTE GAME ---
+window.playRoulette = async (choice) => {
+  if (isGameProcessing) return;
 
-window.placeRouletteBet = (choice) => {
-  if (rouletteState === "spinning") return alert("Round is currently spinning! Please wait.");
-  
   const betInput = document.getElementById("roulette-bet");
   const bet = parseInt(betInput.value);
   const resultText = document.getElementById("roulette-result");
+  const wheelDisplay = document.getElementById("roulette-wheel-display");
+  const redBtn = document.getElementById("btn-roulette-red");
+  const blackBtn = document.getElementById("btn-roulette-black");
 
   if (isNaN(bet) || bet < 1 || bet > userData.balance) {
     return alert("Invalid bet amount or insufficient balance!");
   }
 
-  rouletteBets = { choice, bet };
-  resultText.innerText = `Bet placed: ${bet} coins on ${choice.toUpperCase()}.`;
+  isGameProcessing = true;
+
+  // Disable red/black color betting buttons during spin/processing to prevent concurrent conflict
+  if (redBtn) redBtn.disabled = true;
+  if (blackBtn) blackBtn.disabled = true;
+
+  resultText.innerText = "Spinning wheel...";
   resultText.className = "game-status-text text-blue";
 
-  if (rouletteState === "idle") {
-    startRouletteCountdown();
-  }
-};
-
-function startRouletteCountdown() {
-  rouletteState = "betting";
-  rouletteSecondsLeft = 10;
-  
-  const wheelDisplay = document.getElementById("roulette-wheel-display");
-  if (rouletteTimer) clearInterval(rouletteTimer);
-
-  rouletteTimer = setInterval(() => {
-    if (rouletteSecondsLeft > 0) {
-      if (wheelDisplay) {
-        wheelDisplay.innerText = `Next Spin in: ${rouletteSecondsLeft}s`;
-      }
-      rouletteSecondsLeft--;
-    } else {
-      clearInterval(rouletteTimer);
-      executeRouletteSpin();
-    }
-  }, 1000);
-}
-
-async function executeRouletteSpin() {
-  rouletteState = "spinning";
-  const resultText = document.getElementById("roulette-result");
-  const wheelDisplay = document.getElementById("roulette-wheel-display");
-  const track = document.getElementById("roulette-track");
-
-  if (!rouletteBets.bet) {
-    if (wheelDisplay) wheelDisplay.innerText = "Table Idle - Waiting for bets...";
-    if (resultText) {
-      resultText.innerText = "No bets placed. Table sleeping...";
-      resultText.className = "game-status-text text-blue";
-    }
-    rouletteState = "idle";
-    return;
-  }
-
-  const { choice, bet } = rouletteBets;
-  resultText.innerText = "Wheel is spinning...";
-  resultText.className = "game-status-text text-blue";
-
-  // 1. Determine Win/Loss using your criteria
   const winChance = getWinChance(bet);
   const won = Math.random() < winChance;
 
@@ -453,95 +410,49 @@ async function executeRouletteSpin() {
   }
 
   const isRed = redNumbers.includes(winningPocket);
-  const winningColor = winningPocket === 0 ? "green" : (isRed ? "red" : "black");
-
-  // 2. Build the visual tiles track (50 items total, winning color locked at index 42)
-  const totalItems = 50;
-  const winningIndex = 42;
-  let trackHTML = '';
-  const poolColors = ['red', 'black', 'red', 'black', 'green'];
-
-  for (let i = 0; i < totalItems; i++) {
-    let col = (i === winningIndex) ? winningColor : poolColors[Math.floor(Math.random() * poolColors.length)];
-    let bg = col === 'red' ? '#dc2626' : col === 'black' ? '#1f2937' : '#059669';
-    let textLabel = col === 'green' ? '0' : col.toUpperCase();
-    trackHTML += `<div style="min-width: 70px; height: 66px; background: ${bg}; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; font-weight: bold; font-size: 0.9rem; text-transform: uppercase; border: 2px solid rgba(255,255,255,0.1);">${textLabel}</div>`;
-  }
-
-  track.innerHTML = trackHTML;
-  track.style.transition = 'none';
-  track.style.transform = 'translateX(0px)';
-  track.getBoundingClientRect(); // Force reflow
-
-  // 3. Trigger sliding animation
-  const itemWidth = 76; // 70px width + 6px gap
-  const wrapperWidth = document.querySelector('.roulette-slider-wrapper').offsetWidth;
-  const targetOffset = (winningIndex * itemWidth) - (wrapperWidth / 2) + (itemWidth / 2) + (Math.random() * 16 - 8);
-
-  setTimeout(() => {
-    track.style.transition = 'transform 4s cubic-bezier(0.08, 0.82, 0.12, 1)';
-    track.style.transform = `translateX(-${targetOffset}px)`;
-  }, 50);
-
-  // 4. Finalize outcome and database writes after transition finishes (~4.1s)
-  setTimeout(async () => {
-    await finalizeRouletteOutcome(choice, bet, winningPocket, winningColor, won);
-  }, 4100);
-}
-
-async function finalizeRouletteOutcome(choice, bet, winningPocket, winningColor, won) {
-  const resultText = document.getElementById("roulette-result");
-  const wheelDisplay = document.getElementById("roulette-wheel-display");
-
-  const redNumbers = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
-  const colorName = winningPocket === 0 ? "Green (0)" : (redNumbers.includes(winningPocket) ? "Red" : "Black");
+  const colorName = winningPocket === 0 ? "Green (0)" : (isRed ? "Red" : "Black");
 
   const multiplier = choice === "green" ? 14 : 2;
   const netProfit = won ? Math.floor(bet * multiplier) - bet : -bet;
   const netChange = won ? netProfit : -bet;
   const lossIncrement = !won ? bet : 0;
 
-  if (wheelDisplay) {
-    wheelDisplay.innerText = `Landed on Pocket: ${winningPocket} (${colorName})`;
-  }
-
-  try {
-    const userRef = doc(db, "users", currentUser.uid);
-    const poolRef = doc(db, "settings", "housePool");
-
-    await updateDoc(userRef, {
-      balance: increment(netChange),
-      wagered: increment(bet),
-      totalLosses: increment(lossIncrement)
-    });
-
-    await updateDoc(poolRef, {
-      poolBalance: increment(-netChange)
-    });
-
-    if (won) {
-      resultText.innerText = `🎉 Ball landed on ${winningPocket} (${colorName})! You won ${Math.floor(bet * multiplier)} coins!`;
-      resultText.className = "game-status-text text-green";
-    } else {
-      resultText.innerText = `❌ Ball landed on ${winningPocket} (${colorName}). You lost ${bet} coins.`;
-      resultText.className = "game-status-text text-red";
-    }
-  } catch (err) {
-    resultText.innerText = `⚠️ ${err.message}`;
-    resultText.className = "game-status-text text-red";
-  } finally {
-    rouletteBets = {}; 
-    rouletteState = "idle";
-    
+  setTimeout(async () => {
     if (wheelDisplay) {
-      setTimeout(() => {
-        if (rouletteState === "idle") {
-          wheelDisplay.innerText = "Table Ready - Place a bet to start 10s timer";
-        }
-      }, 3000);
+      wheelDisplay.innerText = `Pocket: ${winningPocket} (${colorName})`;
     }
-  }
-}
+
+    try {
+      const userRef = doc(db, "users", currentUser.uid);
+      const poolRef = doc(db, "settings", "housePool");
+
+      await updateDoc(userRef, {
+        balance: increment(netChange),
+        wagered: increment(bet),
+        totalLosses: increment(lossIncrement)
+      });
+
+      await updateDoc(poolRef, {
+        poolBalance: increment(-netChange)
+      });
+
+      if (won) {
+        resultText.innerText = `🎉 Ball landed on ${winningPocket} (${colorName})! You won ${Math.floor(bet * multiplier)} coins!`;
+        resultText.className = "game-status-text text-green";
+      } else {
+        resultText.innerText = `❌ Ball landed on ${winningPocket} (${colorName}). You lost ${bet} coins.`;
+        resultText.className = "game-status-text text-red";
+      }
+    } catch (err) {
+        resultText.innerText = `⚠️ ${err.message}`;
+        resultText.className = "game-status-text text-red";
+    } finally {
+      isGameProcessing = false;
+      if (redBtn) redBtn.disabled = false;
+      if (blackBtn) blackBtn.disabled = false;
+    }
+  }, 2500);
+};
 
 // --- BLACKJACK GAME ---
 let bjDeck = [], playerHand = [], dealerHand = [], bjBetAmount = 0, bjIsForcedLoss = false;
@@ -1187,3 +1098,4 @@ window.claimInstantRakeback = async () => {
     renderRewardsPanel();
   }
 };
+```[cite: 1]
