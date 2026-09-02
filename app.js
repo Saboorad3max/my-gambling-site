@@ -360,29 +360,97 @@ window.playDice = async () => {
   }
 };
 
-// --- ROULETTE GAME ---
-window.playRoulette = async (choice) => {
-  if (isGameProcessing) return;
+// --- ROULETTE GAME (10-Sec Window & Live Spin Animation) ---
+let rouletteTimer = null;
+let rouletteSecondsLeft = 10;
+let rouletteState = "idle"; // "idle", "betting", "spinning"
+let rouletteBets = {}; // Store player choice and amount
 
+window.placeRouletteBet = (choice) => {
+  if (rouletteState === "spinning") return alert("Round is currently spinning! Please wait.");
+  
   const betInput = document.getElementById("roulette-bet");
   const bet = parseInt(betInput.value);
   const resultText = document.getElementById("roulette-result");
-  const wheelDisplay = document.getElementById("roulette-wheel-display");
-  const redBtn = document.getElementById("btn-roulette-red");
-  const blackBtn = document.getElementById("btn-roulette-black");
 
   if (isNaN(bet) || bet < 1 || bet > userData.balance) {
     return alert("Invalid bet amount or insufficient balance!");
   }
 
-  isGameProcessing = true;
-
-  // Disable red/black color betting buttons during spin/processing to prevent concurrent conflict
-  if (redBtn) redBtn.disabled = true;
-  if (blackBtn) blackBtn.disabled = true;
-
-  resultText.innerText = "Spinning wheel...";
+  // Lock in the bet for this round
+  rouletteBets = { choice, bet };
+  resultText.innerText = `Bet placed: ${bet} coins on ${choice.toUpperCase()}.`;
   resultText.className = "game-status-text text-blue";
+
+  // If we are currently idle, trigger the instant wake-up timer
+  if (rouletteState === "idle") {
+    startRouletteCountdown();
+  }
+};
+
+function startRouletteCountdown() {
+  rouletteState = "betting";
+  rouletteSecondsLeft = 10;
+  
+  const resultText = document.getElementById("roulette-result");
+  const wheelDisplay = document.getElementById("roulette-wheel-display");
+
+  if (rouletteTimer) clearInterval(rouletteTimer);
+
+  rouletteTimer = setInterval(() => {
+    if (rouletteSecondsLeft > 0) {
+      if (wheelDisplay) {
+        wheelDisplay.innerText = `Next Spin in: ${rouletteSecondsLeft}s`;
+      }
+      rouletteSecondsLeft--;
+    } else {
+      clearInterval(rouletteTimer);
+      executeRouletteSpin();
+    }
+  }, 1000);
+}
+
+async function executeRouletteSpin() {
+  rouletteState = "spinning";
+  const resultText = document.getElementById("roulette-result");
+  const wheelDisplay = document.getElementById("roulette-wheel-display");
+
+  if (!rouletteBets.bet) {
+    // Idle fallback check: If no bets were placed, reset to idle check
+    if (wheelDisplay) wheelDisplay.innerText = "Table Idle - Waiting for bets...";
+    if (resultText) {
+      resultText.innerText = "No bets placed. Table sleeping...";
+      resultText.className = "game-status-text text-blue";
+    }
+    rouletteState = "idle";
+    return;
+  }
+
+  const { choice, bet } = rouletteBets;
+  resultText.innerText = "Wheel is spinning...";
+  resultText.className = "game-status-text text-blue";
+
+  // Live spinning rolling animation simulation
+  let spinCounter = 0;
+  const redNumbers = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+  
+  const rollInterval = setInterval(() => {
+    const randomPocket = Math.floor(Math.random() * 37);
+    const isRedTemp = redNumbers.includes(randomPocket);
+    const colorTemp = randomPocket === 0 ? "Green" : (isRedTemp ? "Red" : "Black");
+    if (wheelDisplay) wheelDisplay.innerText = `Rolling... ${randomPocket} (${colorTemp})`;
+    spinCounter++;
+    
+    if (spinCounter > 15) {
+      clearInterval(rollInterval);
+      finalizeRouletteOutcome(choice, bet);
+    }
+  }, 150);
+}
+
+async function finalizeRouletteOutcome(choice, bet) {
+  const resultText = document.getElementById("roulette-result");
+  const wheelDisplay = document.getElementById("roulette-wheel-display");
 
   const winChance = getWinChance(bet);
   const won = Math.random() < winChance;
@@ -417,42 +485,48 @@ window.playRoulette = async (choice) => {
   const netChange = won ? netProfit : -bet;
   const lossIncrement = !won ? bet : 0;
 
-  setTimeout(async () => {
+  if (wheelDisplay) {
+    wheelDisplay.innerText = `Pocket: ${winningPocket} (${colorName})`;
+  }
+
+  try {
+    const userRef = doc(db, "users", currentUser.uid);
+    const poolRef = doc(db, "settings", "housePool");
+
+    await updateDoc(userRef, {
+      balance: increment(netChange),
+      wagered: increment(bet),
+      totalLosses: increment(lossIncrement)
+    });
+
+    await updateDoc(poolRef, {
+      poolBalance: increment(-netChange)
+    });
+
+    if (won) {
+      resultText.innerText = `🎉 Ball landed on ${winningPocket} (${colorName})! You won ${Math.floor(bet * multiplier)} coins!`;
+      resultText.className = "game-status-text text-green";
+    } else {
+      resultText.innerText = `❌ Ball landed on ${winningPocket} (${colorName}). You lost ${bet} coins.`;
+      resultText.className = "game-status-text text-red";
+    }
+  } catch (err) {
+    resultText.innerText = `⚠️ ${err.message}`;
+    resultText.className = "game-status-text text-red";
+  } finally {
+    rouletteBets = {}; // Reset bets for next round
+    rouletteState = "idle";
+    
+    // Automatically trigger next cycle if player is still active or restart idle check
     if (wheelDisplay) {
-      wheelDisplay.innerText = `Pocket: ${winningPocket} (${colorName})`;
+      setTimeout(() => {
+        if (rouletteState === "idle") {
+          wheelDisplay.innerText = "Table Ready - Place a bet to start 10s timer";
+        }
+      }, 3000);
     }
-
-    try {
-      const userRef = doc(db, "users", currentUser.uid);
-      const poolRef = doc(db, "settings", "housePool");
-
-      await updateDoc(userRef, {
-        balance: increment(netChange),
-        wagered: increment(bet),
-        totalLosses: increment(lossIncrement)
-      });
-
-      await updateDoc(poolRef, {
-        poolBalance: increment(-netChange)
-      });
-
-      if (won) {
-        resultText.innerText = `🎉 Ball landed on ${winningPocket} (${colorName})! You won ${Math.floor(bet * multiplier)} coins!`;
-        resultText.className = "game-status-text text-green";
-      } else {
-        resultText.innerText = `❌ Ball landed on ${winningPocket} (${colorName}). You lost ${bet} coins.`;
-        resultText.className = "game-status-text text-red";
-      }
-    } catch (err) {
-        resultText.innerText = `⚠️ ${err.message}`;
-        resultText.className = "game-status-text text-red";
-    } finally {
-      isGameProcessing = false;
-      if (redBtn) redBtn.disabled = false;
-      if (blackBtn) blackBtn.disabled = false;
-    }
-  }, 2500);
-};
+  }
+}
 
 // --- BLACKJACK GAME ---
 let bjDeck = [], playerHand = [], dealerHand = [], bjBetAmount = 0, bjIsForcedLoss = false;
