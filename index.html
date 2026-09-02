@@ -62,6 +62,11 @@
             <div class="card-icon">🃏</div>
             <div class="card-title">BLACKJACK</div>
           </div>
+          <div class="game-card" onclick="openGame('roulette')">
+            <div class="card-badge">ORIGINAL</div>
+            <div class="card-icon">🎯</div>
+            <div class="card-title">ROULETTE</div>
+          </div>
         </div>
       </div>
 
@@ -137,6 +142,52 @@
           <p id="bj-result" class="game-status-text"></p>
         </div>
       </div>
+
+      <div id="game-stage-roulette" class="game-stage hidden" style="padding: 20px; background: linear-gradient(145deg, #0d111a, #07090e); color: #fff; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); max-width: 600px; margin: auto;">
+        <button class="btn-back" onclick="closeGame()" style="margin-bottom: 15px;">← Back to Games</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0; color: #3b82f6;">Roulette</h3>
+          <div id="roulette-timer" style="background: #1f2937; padding: 6px 14px; border-radius: 6px; font-weight: bold; color: #f59e0b;">Connecting...</div>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px;" id="roulette-history"></div>
+
+        <div style="position: relative; overflow: hidden; background: #111827; border: 2px solid #1f2937; border-radius: 8px; height: 100px; margin-bottom: 20px;">
+          <div style="position: absolute; left: 50%; top: 0; bottom: 0; width: 4px; background: #f59e0b; z-index: 10; transform: translateX(-50%); box-shadow: 0 0 10px #f59e0b;"></div>
+          <div id="roulette-track" style="display: flex; position: absolute; left: 0; top: 0; height: 100%; transition: transform 4s cubic-bezier(0.15, 0.85, 0.35, 1);"></div>
+        </div>
+
+        <div style="display: flex; gap: 10px; align-items: center; background: #111827; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
+          <span style="font-weight: bold; color: #9ca3af;">Bet:</span>
+          <input type="number" id="roulette-bet-input" value="10" style="background: #1f2937; border: 1px solid #374151; color: #fff; padding: 8px 12px; border-radius: 6px; width: 100px;">
+          <button onclick="setRouletteBet('clear')" style="background: #1f2937; border: none; color: #fff; padding: 8px 10px; border-radius: 6px; cursor: pointer;">Clear</button>
+          <button onclick="setRouletteBet(10)" style="background: #1f2937; border: none; color: #fff; padding: 8px 10px; border-radius: 6px; cursor: pointer;">+10</button>
+          <button onclick="setRouletteBet(100)" style="background: #1f2937; border: none; color: #fff; padding: 8px 10px; border-radius: 6px; cursor: pointer;">+100</button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px;">
+          <button onclick="placeRouletteBet('red')" style="background: #ef4444; border: none; border-radius: 8px; padding: 18px; color: #fff; cursor: pointer; text-align: left; position: relative;">
+            <div style="font-size: 16px; font-weight: bold;">Red</div>
+            <div style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-weight: bold;">x2</div>
+            <div id="bet-total-red" style="font-size: 12px; opacity: 0.8; margin-top: 4px;">0.00 Coins</div>
+          </button>
+          <button onclick="placeRouletteBet('green')" style="background: #10b981; border: none; border-radius: 8px; padding: 18px; color: #fff; cursor: pointer; text-align: left; position: relative;">
+            <div style="font-size: 16px; font-weight: bold;">Green</div>
+            <div style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-weight: bold;">x14</div>
+            <div id="bet-total-green" style="font-size: 12px; opacity: 0.8; margin-top: 4px;">0.00 Coins</div>
+          </button>
+          <button onclick="placeRouletteBet('black')" style="background: #374151; border: none; border-radius: 8px; padding: 18px; color: #fff; cursor: pointer; text-align: left; position: relative;">
+            <div style="font-size: 16px; font-weight: bold;">Black</div>
+            <div style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-weight: bold;">x2</div>
+            <div id="bet-total-black" style="font-size: 12px; opacity: 0.8; margin-top: 4px;">0.00 Coins</div>
+          </button>
+          <button onclick="placeRouletteBet('bait')" style="background: #3b82f6; border: none; border-radius: 8px; padding: 18px; color: #fff; cursor: pointer; text-align: left; position: relative;">
+            <div style="font-size: 16px; font-weight: bold;">Bait</div>
+            <div style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); font-weight: bold;">x7</div>
+            <div id="bet-total-bait" style="font-size: 12px; opacity: 0.8; margin-top: 4px;">0.00 Coins</div>
+          </button>
+        </div>
+      </div>
     </section>
 
     <section id="tab-leaderboard" class="tab-content">
@@ -150,13 +201,11 @@
 
     <section id="tab-rewards" class="tab-content">
       <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
-        <!-- Gift Box Icon -->
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7;"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
         <h2 style="margin: 0; color: #ffffff; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em;">Your Rewards</h2>
       </div>
 
       <div class="games-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
-        <!-- Instant Rakeback Card -->
         <div class="game-card" style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; display: flex; flex-direction: column; justify-content: space-between; text-align: left; height: auto; cursor: default; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px;">
             <span style="color: #ffffff; font-size: 1rem; font-weight: 600; padding-right: 12px;">Wager to Unlock</span>
@@ -165,7 +214,6 @@
           
           <div style="text-align: center; margin: 10px 0 32px 0;">
             <div style="margin-bottom: 16px; display: inline-flex; padding: 16px; background: rgba(168, 85, 247, 0.08); border-radius: 50%;">
-              <!-- Gift Box SVG matching Daily Rakeback -->
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7;"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
             </div>
             <h3 style="color: #ffffff; margin: 0; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em;">Instant Rakeback</h3>
@@ -177,7 +225,6 @@
           </div>
         </div>
 
-        <!-- Daily Rakeback Card -->
         <div class="game-card" style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; display: flex; flex-direction: column; justify-content: space-between; text-align: left; height: auto; cursor: default; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px;">
             <span style="color: #ffffff; font-size: 1rem; font-weight: 600; padding-right: 12px;">Claim Soon!</span>
@@ -186,7 +233,6 @@
           
           <div style="text-align: center; margin: 10px 0 32px 0;">
             <div style="margin-bottom: 16px; display: inline-flex; padding: 16px; background: rgba(168, 85, 247, 0.08); border-radius: 50%;">
-              <!-- Chest / Gift Box SVG -->
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7;"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
             </div>
             <h3 style="color: #ffffff; margin: 0; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em;">Daily Rakeback</h3>
