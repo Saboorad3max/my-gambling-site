@@ -291,7 +291,7 @@ window.play3DCoinflip = async (choice) => {
 
 // --- DICE GAME (33% Win Chance) ---
 window.playDice = async () => {
-  if (isGameProcessing) return[cite: 4];
+  if (isGameProcessing) return;
 
   const bet = parseInt(document.getElementById("dice-bet").value);
   const target = document.getElementById("dice-target").value;
@@ -329,7 +329,10 @@ window.playDice = async () => {
   display.innerText = diceEmojis[roll];
 
   const multiplier = 3;
-  const netProfit = Math.floor(bet * multiplier) - bet;
+  const totalPayout = Math.floor(bet * multiplier);
+  const netProfit = totalPayout - bet;
+  
+  // If won, user gets their net profit added. If lost, they lose their bet.
   const netChange = won ? netProfit : -bet;
   const lossIncrement = !won ? bet : 0;
 
@@ -343,13 +346,14 @@ window.playDice = async () => {
       totalLosses: increment(lossIncrement)
     });
 
+    // House pool loses the net payout given to the user, or gains the user's lost bet
+    const poolChange = won ? -netProfit : bet;
     await updateDoc(poolRef, {
-      poolBalance: increment(-netChange)
+      poolBalance: increment(poolChange)
     });
 
     if (won) {
-      const totalPayout = Math.floor(bet * multiplier);
-      resultText.innerText = `Rolled ${roll}! You won ${totalPayout} coins! 🎉 (2.5x Payout)`;
+      resultText.innerText = `Rolled ${roll}! You won ${totalPayout} coins! 🎉 (3x Payout)`;
       resultText.className = "game-status-text text-green";
     } else {
       resultText.innerText = `Rolled ${roll}. You lost ${bet} coins.`;
@@ -362,7 +366,6 @@ window.playDice = async () => {
     isGameProcessing = false;
   }
 };
-
 // --- BLACKJACK GAME ---
 let bjDeck = [], playerHand = [], dealerHand = [], bjBetAmount = 0, bjIsForcedLoss = false;
 
