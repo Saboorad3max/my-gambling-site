@@ -59,7 +59,7 @@ function listenForTipNotifications() {
   });
 }
 
-// Helper function to calculate target win probability based on house pool status (50% win chance across all games while house pool has balance)
+// Helper function to calculate target win probability based on house pool status (50% win chance for coinflip/blackjack)[cite: 4]
 function getWinChance(bet) {
   if (housePoolData.poolBalance <= 0) {
     return 0; 
@@ -165,6 +165,7 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById("display-user").innerText = userData.username;
         document.getElementById("display-balance").innerText = userData.balance;
 
+        // Render rakeback panel dynamically on data sync
         renderRewardsPanel();
 
         if (userData.isAdmin || currentUser.email.toLowerCase() === "saboorezz@gmail.com") {
@@ -228,7 +229,7 @@ window.closeGame = () => {
 
 // --- 3D ANIMATED COINFLIP ---
 window.play3DCoinflip = async (choice) => {
-  if (isGameProcessing) return;
+  if (isGameProcessing) return[cite: 4];
   
   const betInput = document.getElementById("coinflip-bet");
   const bet = parseInt(betInput.value);
@@ -288,9 +289,9 @@ window.play3DCoinflip = async (choice) => {
   }, 3000);
 };
 
-// --- DICE GAME ---
+// --- DICE GAME (33% Win Chance) ---
 window.playDice = async () => {
-  if (isGameProcessing) return;
+  if (isGameProcessing) return[cite: 4];
 
   const bet = parseInt(document.getElementById("dice-bet").value);
   const target = document.getElementById("dice-target").value;
@@ -305,7 +306,8 @@ window.playDice = async () => {
 
   isGameProcessing = true;
 
-  const winChance = getWinChance(bet);
+  // Set win chance to 33% if house pool has balance, else 0%
+  const winChance = housePoolData.poolBalance > 0 ? 0.33 : 0;
   const won = Math.random() < winChance;
 
   const rangeMap = {
@@ -315,8 +317,13 @@ window.playDice = async () => {
   };
 
   const selectedRange = rangeMap[target] || rangeMap["1-2"];
-  const pool = won ? selectedRange.valid : selectedRange.invalid;
-  const roll = pool[Math.floor(Math.random() * pool.length)];
+  
+  let roll;
+  if (won) {
+    roll = selectedRange.valid[Math.floor(Math.random() * selectedRange.valid.length)];
+  } else {
+    roll = selectedRange.invalid[Math.floor(Math.random() * selectedRange.invalid.length)];
+  }
 
   const diceEmojis = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
   display.innerText = diceEmojis[roll];
@@ -400,7 +407,7 @@ function endBJ(msg, colorClass) {
 }
 
 window.startBlackjack = async () => {
-  if (isGameProcessing) return;
+  if (isGameProcessing) return[cite: 4];
 
   bjBetAmount = parseInt(document.getElementById('bj-bet').value);
   const resultText = document.getElementById('bj-result');
@@ -909,12 +916,12 @@ function renderRewardsPanel() {
       claimBtn.style.cursor = "not-allowed";
       claimBtn.disabled = true;
     } else if (isUnlocked) {
-      claimBtn.style.background = "#10b981"; 
+      claimBtn.style.background = "#10b981";
       claimBtn.style.color = "#fff";
       claimBtn.style.cursor = "pointer";
       claimBtn.disabled = false;
     } else {
-      claimBtn.style.background = "#374151"; 
+      claimBtn.style.background = "#374151";
       claimBtn.style.color = "#9ca3af";
       claimBtn.style.cursor = "not-allowed";
       claimBtn.disabled = true;
@@ -931,7 +938,7 @@ function renderRewardsPanel() {
   }
 
   if (dailyBtn) {
-    dailyBtn.style.background = "#374151"; 
+    dailyBtn.style.background = "#374151";
     dailyBtn.style.color = "#9ca3af";
     dailyBtn.style.cursor = "not-allowed";
     dailyBtn.disabled = true;
