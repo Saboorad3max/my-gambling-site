@@ -69,7 +69,7 @@ function getWinChance(bet) {
   return 0.30;                     
 }
 
-// --- DAILY WAGER LEADERBOARD LOGIC ---
+// --- DAILY WAGER LEADERBOARD & AUTOMATED RESET ---
 function startLeaderboardTimer() {
   const timerEl = document.getElementById('leaderboard-timer');
   if (!timerEl) return;
@@ -92,6 +92,58 @@ function startLeaderboardTimer() {
 
   updateTimer();
   setInterval(updateTimer, 1000);
+}
+
+async function checkAndResetLeaderboard() {
+  const now = new Date();
+  const todayUtcKey = now.toISOString().split('T')[0];
+  
+  const settingsRef = doc(db, "settings", "leaderboardState");
+  const settingsSnap = await getDoc(settingsRef);
+
+  let lastResetDate = "";
+  if (settingsSnap.exists()) {
+    lastResetDate = settingsSnap.data().lastResetDate || "";
+  }
+
+  if (lastResetDate !== todayUtcKey) {
+    try {
+      const q = query(collection(db, "users"), orderBy("wagered", "desc"), limit(3));
+      const topUsersSnap = await getDocs(q);
+
+      if (!topUsersSnap.empty) {
+        const prizes = [175, 105, 70];
+        let index = 0;
+
+        for (const userDoc of topUsersSnap.docs) {
+          const prizeAmount = prizes[index] || 0;
+          if (prizeAmount > 0) {
+            const userRef = doc(db, "users", userDoc.id);
+            await updateDoc(userRef, {
+              balance: increment(prizeAmount)
+            });
+
+            await addDoc(collection(db, "tip_notifications"), {
+              message: `🏆 Leaderboard Reset! ${userDoc.data().username || "User"} won ${prizeAmount} coins for place #${index + 1}!`,
+              timestamp: serverTimestamp()
+            });
+          }
+          index++;
+        }
+      }
+
+      const allUsersSnap = await getDocs(collection(db, "users"));
+      const batchPromises = allUsersSnap.docs.map((uDoc) => {
+        return updateDoc(doc(db, "users", uDoc.id), { wagered: 0 });
+      });
+      await Promise.all(batchPromises);
+
+      await setDoc(settingsRef, { lastResetDate: todayUtcKey }, { merge: true });
+      console.log("Daily leaderboard successfully paid out and reset for:", todayUtcKey);
+    } catch (err) {
+      console.error("Error executing automated leaderboard reset:", err);
+    }
+  }
 }
 
 function listenForLeaderboard() {
@@ -196,6 +248,7 @@ onAuthStateChanged(auth, async (user) => {
     listenForTipNotifications();
     startLeaderboardTimer();
     listenForLeaderboard();
+    await checkAndResetLeaderboard();
   } else {
     document.getElementById("auth-container").classList.remove("hidden");
     document.getElementById("app-container").classList.add("hidden");
