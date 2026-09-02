@@ -1098,4 +1098,3 @@ window.claimInstantRakeback = async () => {
     renderRewardsPanel();
   }
 };
-```[cite: 1]
