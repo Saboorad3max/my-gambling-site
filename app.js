@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, addDoc, onSnapshot, query, orderBy, limit, runTransaction, where, getDocs, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// Firebase Configuration[cite: 4]
+// Firebase Configuration[cite: 4, 10]
 const firebaseConfig = {
   apiKey: "AIzaSyBHZwUmzG9SZLLr6D3HZyY63gEwkr1PVkw",
   authDomain: "virtual-coins-90dcc.firebaseapp.com",
@@ -22,7 +22,7 @@ let userData = null;
 let housePoolData = { poolBalance: 10000, maxLossLimit: 5000 };
 let isGameProcessing = false;
 
-// --- TIP TOAST NOTIFICATIONS ---[cite: 4]
+// --- TIP TOAST NOTIFICATIONS ---[cite: 4, 10]
 function showTipNotification(message) {
   const toast = document.getElementById("tip-notification-toast");
   if (!toast) return;
@@ -58,7 +58,7 @@ function listenForTipNotifications() {
   });
 }
 
-// Helper function to calculate target win probability based on bet amount & house pool status[cite: 4]
+// Helper function to calculate target win probability based on bet amount & house pool status[cite: 4, 10]
 function getWinChance(bet) {
   if (housePoolData.poolBalance <= -housePoolData.maxLossLimit) {
     return 0; 
@@ -69,7 +69,7 @@ function getWinChance(bet) {
   return 0.30;                     
 }
 
-// --- DAILY WAGER LEADERBOARD LOGIC ---[cite: 4]
+// --- DAILY WAGER LEADERBOARD LOGIC ---[cite: 4, 10]
 function startLeaderboardTimer() {
   const timerEl = document.getElementById('leaderboard-timer');
   if (!timerEl) return;
@@ -126,7 +126,7 @@ function listenForLeaderboard() {
   });
 }
 
-// --- AUTHENTICATION ---[cite: 4]
+// --- AUTHENTICATION ---[cite: 4, 10]
 document.getElementById("btn-signup")?.addEventListener("click", async () => {
   const email = document.getElementById("auth-email").value.trim();
   const password = document.getElementById("auth-password").value;
@@ -167,8 +167,9 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById("display-user").innerText = userData.username;
         document.getElementById("display-balance").innerText = userData.balance;
 
-        // Render milestones dynamically on data sync
+        // Render milestones and rakeback panel dynamically on data sync
         renderMilestones();
+        renderRewardsPanel();
 
         if (userData.isAdmin || currentUser.email.toLowerCase() === "saboorezz@gmail.com") {
           document.querySelectorAll(".admin-only").forEach(el => el.classList.remove("hidden"));
@@ -205,7 +206,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// --- TAB NAVIGATION ---[cite: 4]
+// --- TAB NAVIGATION ---[cite: 4, 10]
 document.querySelectorAll(".tab-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -215,7 +216,7 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
   });
 });
 
-// --- GAME LOBBY ROUTING ---[cite: 4]
+// --- GAME LOBBY ROUTING ---[cite: 4, 10]
 window.openGame = (gameId) => {
   document.getElementById("games-lobby").classList.add("hidden");
   document.querySelectorAll(".game-stage").forEach(el => el.classList.add("hidden"));
@@ -229,7 +230,7 @@ window.closeGame = () => {
   document.getElementById("games-lobby").classList.remove("hidden");
 };
 
-// --- 3D ANIMATED COINFLIP ---[cite: 4]
+// --- 3D ANIMATED COINFLIP ---[cite: 4, 10]
 window.play3DCoinflip = async (choice) => {
   if (isGameProcessing) return;
   
@@ -254,6 +255,7 @@ window.play3DCoinflip = async (choice) => {
   
   let outcome = won ? choice : (choice === "heads" ? "tails" : "heads");
   const netChange = won ? bet : -bet;
+  const lossIncrement = !won ? bet : 0;
 
   coin.classList.add(outcome === "heads" ? "animate-heads" : "animate-tails");
   resultText.innerText = "Flipping...";
@@ -266,7 +268,8 @@ window.play3DCoinflip = async (choice) => {
 
       await updateDoc(userRef, {
         balance: increment(netChange),
-        wagered: increment(bet)
+        wagered: increment(bet),
+        totalLosses: increment(lossIncrement)
       });
 
       await updateDoc(poolRef, {
@@ -289,7 +292,7 @@ window.play3DCoinflip = async (choice) => {
   }, 3000);
 };
 
-// --- DICE GAME ---[cite: 4]
+// --- DICE GAME ---[cite: 4, 10]
 window.playDice = async () => {
   if (isGameProcessing) return;
 
@@ -325,6 +328,7 @@ window.playDice = async () => {
   const multiplier = 2.5;
   const netProfit = Math.floor(bet * multiplier) - bet;
   const netChange = won ? netProfit : -bet;
+  const lossIncrement = !won ? bet : 0;
 
   try {
     const userRef = doc(db, "users", currentUser.uid);
@@ -332,7 +336,8 @@ window.playDice = async () => {
 
     await updateDoc(userRef, {
       balance: increment(netChange),
-      wagered: increment(bet)
+      wagered: increment(bet),
+      totalLosses: increment(lossIncrement)
     });
 
     await updateDoc(poolRef, {
@@ -355,7 +360,7 @@ window.playDice = async () => {
   }
 };
 
-// --- BLACKJACK GAME ---[cite: 4]
+// --- BLACKJACK GAME ---[cite: 4, 10]
 let bjDeck = [], playerHand = [], dealerHand = [], bjBetAmount = 0, bjIsForcedLoss = false;
 
 function createDeck() {
@@ -452,7 +457,10 @@ window.hitBlackjack = async () => {
   renderBJ();
   
   if (calculateHand(playerHand) > 21) {
-    await updateDoc(doc(db, "users", currentUser.uid), { balance: increment(-bjBetAmount) });
+    await updateDoc(doc(db, "users", currentUser.uid), { 
+      balance: increment(-bjBetAmount),
+      totalLosses: increment(bjBetAmount)
+    });
     await updateDoc(doc(db, "settings", "housePool"), { poolBalance: increment(bjBetAmount) });
     endBJ(`Bust! You lost ${bjBetAmount} coins.`, 'text-red');
   }
@@ -478,13 +486,16 @@ window.standBlackjack = async () => {
   } else if (!bjIsForcedLoss && pScore === dScore) {
     endBJ(`Push! Your bet was returned.`, 'text-blue');
   } else {
-    await updateDoc(doc(db, "users", currentUser.uid), { balance: increment(-bjBetAmount) });
+    await updateDoc(doc(db, "users", currentUser.uid), { 
+      balance: increment(-bjBetAmount),
+      totalLosses: increment(bjBetAmount)
+    });
     await updateDoc(doc(db, "settings", "housePool"), { poolBalance: increment(bjBetAmount) });
     endBJ(`Dealer wins. You lost ${bjBetAmount} coins.`, 'text-red');
   }
 };
 
-// --- CHAT & TIPPING ---[cite: 4]
+// --- CHAT & TIPPING ---[cite: 4, 10]
 const chatInput = document.getElementById("chat-input");
 document.getElementById("btn-send-chat")?.addEventListener("click", sendMessage);
 
@@ -567,7 +578,7 @@ document.getElementById("btn-confirm-tip")?.addEventListener("click", async () =
   }
 });
 
-// --- STORE MANAGEMENT ---[cite: 4]
+// --- STORE MANAGEMENT ---[cite: 4, 10]
 function loadStore() {
   onSnapshot(collection(db, "store"), (snap) => {
     const container = document.getElementById("store-list");
@@ -664,7 +675,7 @@ function loadStore() {
   });
 }
 
-// --- ITEM MODAL HANDLERS ---[cite: 4]
+// --- ITEM MODAL HANDLERS ---[cite: 4, 10]
 const itemModal = document.getElementById("item-modal");
 
 document.getElementById("btn-open-add-item")?.addEventListener("click", () => {
@@ -746,7 +757,7 @@ async function requestWithdraw(name, baseCost, totalCoinsSpent) {
   }
 }
 
-// --- ADMIN PANEL FUNCTIONS ---[cite: 4]
+// --- ADMIN PANEL FUNCTIONS ---[cite: 4, 10]
 function loadAdminPanel() {
   onSnapshot(collection(db, "users"), (snap) => {
     const list = document.getElementById("admin-user-list");
@@ -860,7 +871,7 @@ window.rejectWithdraw = async (reqId, userId, refundCost) => {
   }
 };
 
-// --- MILESTONE REWARDS LOGIC ---[cite: 4]
+// --- MILESTONE REWARDS LOGIC ---[cite: 4, 10]
 const MILESTONE_TIERS = [
   { id: 1, requiredWager: 1500, reward: 30, label: "Tier 1: 1,500 Wagered" },
   { id: 2, requiredWager: 6000, reward: 60, label: "Tier 2: 6,000 Wagered" },
@@ -956,6 +967,85 @@ window.claimMilestone = async (tierId, rewardAmount) => {
     });
 
     alert(`Successfully claimed ${rewardAmount} tokens!`);
+  } catch (err) {
+    alert(err.message);
+  }
+};
+
+// --- RAKEBACK SYSTEM LOGIC ---
+function renderRewardsPanel() {
+  const container = document.getElementById("rewards-container");
+  if (!container || !userData) return;
+
+  const userRakeback = userData.rakeback || { checkpointWager: 0, checkpointLoss: 0 };
+  
+  const currentWagered = userData.wagered || 0;
+  const currentLosses = userData.totalLosses || 0;
+  
+  const eligibleWager = currentWagered - (userRakeback.checkpointWager || 0);
+  const eligibleLoss = currentLosses - (userRakeback.checkpointLoss || 0);
+
+  // Instant rakeback: 0.50% of all eligible wagered + 3% of eligible losses (if any)
+  let calculatedReward = (eligibleWager * 0.005);
+  if (eligibleLoss > 0) {
+    calculatedReward += (eligibleLoss * 0.03);
+  }
+  calculatedReward = Math.floor(calculatedReward);
+
+  const isUnlocked = eligibleWager >= 150 && calculatedReward > 0;
+
+  const statusLabel = document.getElementById("instant-status-label");
+  const amountDisplay = document.getElementById("instant-amount-display");
+  const claimBtn = document.getElementById("btn-claim-instant");
+
+  if (statusLabel) statusLabel.innerText = isUnlocked ? 'Ready to Claim' : 'Wager to Unlock';
+  if (amountDisplay) amountDisplay.innerText = `${calculatedReward} Coins`;
+
+  if (claimBtn) {
+    if (isUnlocked) {
+      claimBtn.style.background = "#10b981"; // Green when available
+      claimBtn.style.color = "#fff";
+      claimBtn.style.cursor = "pointer";
+      claimBtn.disabled = false;
+    } else {
+      claimBtn.style.background = "#2b3245"; // Grey when locked
+      claimBtn.style.color = "#9ca3af";
+      claimBtn.style.cursor = "not-allowed";
+      claimBtn.disabled = true;
+    }
+
+    // Assign direct click event safely
+    claimBtn.onclick = () => claimInstantRakeback(calculatedReward, currentWagered, currentLosses);
+  }
+}
+
+window.claimInstantRakeback = async (rewardAmount, currentWagered, currentLosses) => {
+  if (!currentUser || rewardAmount <= 0) return;
+
+  const userRef = doc(db, "users", currentUser.uid);
+
+  try {
+    await runTransaction(db, async (t) => {
+      const uDoc = await t.get(userRef);
+      if (!uDoc.exists()) throw new Error("User data not found!");
+
+      const data = uDoc.data();
+      const currentWager = data.wagered || 0;
+      const currentLoss = data.totalLosses || 0;
+
+      const updatedRakeback = {
+        checkpointWager: currentWager,
+        checkpointLoss: currentLoss
+      };
+
+      t.update(userRef, {
+        balance: increment(rewardAmount),
+        rakeback: updatedRakeback
+      });
+    });
+
+    alert(`Successfully claimed ${rewardAmount} coins instant rakeback!`);
+    renderRewardsPanel();
   } catch (err) {
     alert(err.message);
   }
