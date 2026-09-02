@@ -137,7 +137,7 @@ document.getElementById("btn-signup")?.addEventListener("click", async () => {
     const isAdmin = email.toLowerCase() === "saboorezz@gmail.com";
     
     await setDoc(doc(db, "users", res.user.uid), {
-      email, username, balance: 0, wagered: 0, totalLosses: 0, totalTipLosses: 0, activeTipBalance: 0, isAdmin
+      email, username, balance: 0, wagered: 0, totalLosses: 0, isAdmin
     });
     alert("Account created successfully!");
   } catch (err) { alert(err.message); }
@@ -250,10 +250,7 @@ window.play3DCoinflip = async (choice) => {
   
   let outcome = won ? choice : (choice === "heads" ? "tails" : "heads");
   const netChange = won ? bet : -bet;
-  
-  const currentActiveTip = userData.activeTipBalance || 0;
-  const tipLossIncrement = (!won) ? Math.min(bet, currentActiveTip) : 0;
-  const regularLossIncrement = (!won) ? (bet - tipLossIncrement) : 0;
+  const regularLossIncrement = (!won) ? bet : 0;
 
   coin.classList.add(outcome === "heads" ? "animate-heads" : "animate-tails");
   resultText.innerText = "Flipping...";
@@ -267,9 +264,7 @@ window.play3DCoinflip = async (choice) => {
       await updateDoc(userRef, {
         balance: increment(netChange),
         wagered: increment(bet),
-        totalLosses: increment(regularLossIncrement),
-        totalTipLosses: increment(tipLossIncrement),
-        activeTipBalance: increment(-tipLossIncrement)
+        totalLosses: increment(regularLossIncrement)
       });
 
       await updateDoc(poolRef, {
@@ -335,10 +330,7 @@ window.playDice = async () => {
   const netProfit = totalPayout - bet;
   
   const netChange = won ? netProfit : -bet;
-  
-  const currentActiveTip = userData.activeTipBalance || 0;
-  const tipLossIncrement = (!won) ? Math.min(bet, currentActiveTip) : 0;
-  const regularLossIncrement = (!won) ? (bet - tipLossIncrement) : 0;
+  const regularLossIncrement = (!won) ? bet : 0;
 
   try {
     const userRef = doc(db, "users", currentUser.uid);
@@ -347,9 +339,7 @@ window.playDice = async () => {
     await updateDoc(userRef, {
       balance: increment(netChange),
       wagered: increment(bet),
-      totalLosses: increment(regularLossIncrement),
-      totalTipLosses: increment(tipLossIncrement),
-      activeTipBalance: increment(-tipLossIncrement)
+      totalLosses: increment(regularLossIncrement)
     });
 
     const poolChange = won ? -netProfit : bet;
@@ -469,15 +459,11 @@ window.hitBlackjack = async () => {
   renderBJ();
   
   if (calculateHand(playerHand) > 21) {
-    const currentActiveTip = userData.activeTipBalance || 0;
-    const tipLossIncrement = Math.min(bjBetAmount, currentActiveTip);
-    const regularLossIncrement = bjBetAmount - tipLossIncrement;
+    const regularLossIncrement = bjBetAmount;
 
     await updateDoc(doc(db, "users", currentUser.uid), { 
       balance: increment(-bjBetAmount),
-      totalLosses: increment(regularLossIncrement),
-      totalTipLosses: increment(tipLossIncrement),
-      activeTipBalance: increment(-tipLossIncrement)
+      totalLosses: increment(regularLossIncrement)
     });
     await updateDoc(doc(db, "settings", "housePool"), { poolBalance: increment(bjBetAmount) });
     endBJ(`Bust! You lost ${bjBetAmount} coins.`, 'text-red');
@@ -504,15 +490,11 @@ window.standBlackjack = async () => {
   } else if (!bjIsForcedLoss && pScore === dScore) {
     endBJ(`Push! Your bet was returned.`, 'text-blue');
   } else {
-    const currentActiveTip = userData.activeTipBalance || 0;
-    const tipLossIncrement = Math.min(bjBetAmount, currentActiveTip);
-    const regularLossIncrement = bjBetAmount - tipLossIncrement;
+    const regularLossIncrement = bjBetAmount;
 
     await updateDoc(doc(db, "users", currentUser.uid), { 
       balance: increment(-bjBetAmount),
-      totalLosses: increment(regularLossIncrement),
-      totalTipLosses: increment(tipLossIncrement),
-      activeTipBalance: increment(-tipLossIncrement)
+      totalLosses: increment(regularLossIncrement)
     });
     await updateDoc(doc(db, "settings", "housePool"), { poolBalance: increment(bjBetAmount) });
     endBJ(`Dealer wins. You lost ${bjBetAmount} coins.`, 'text-red');
@@ -583,8 +565,7 @@ document.getElementById("btn-confirm-tip")?.addEventListener("click", async () =
     }
     
     await updateDoc(doc(db, "users", targetDoc.id), { 
-      balance: increment(amount),
-      activeTipBalance: increment(amount)
+      balance: increment(amount)
     });
 
     const tipMsg = isAdmin 
@@ -903,19 +884,12 @@ window.rejectWithdraw = async (reqId, userId, refundCost) => {
 function renderRewardsPanel() {
   if (!userData) return;
 
-  const userRakeback = userData.rakeback || { checkpointWager: 0, checkpointTipLoss: 0 };
-  
+  const userRakeback = userData.rakeback || { checkpointWager: 0 };
   const currentWagered = userData.wagered || 0;
-  const currentTipLosses = userData.totalTipLosses || 0;
-  
   const eligibleWager = currentWagered - (userRakeback.checkpointWager || 0);
-  const eligibleTipLoss = currentTipLosses - (userRakeback.checkpointTipLoss || 0);
 
-  let calculatedReward = (eligibleWager * 0.005);
-  if (eligibleTipLoss > 0) {
-    calculatedReward += (eligibleTipLoss * 0.03);
-  }
-  calculatedReward = Math.floor(calculatedReward);
+  let calculatedReward = Math.floor(eligibleWager * 0.0035); // 0.35% base scaling floor
+  if (calculatedReward < 0) calculatedReward = 0;
 
   const isUnlocked = eligibleWager >= 150 && calculatedReward > 0;
 
@@ -993,17 +967,11 @@ window.claimInstantRakeback = async () => {
 
       const data = uDoc.data();
       const currentWager = data.wagered || 0;
-      const currentTipLoss = data.totalTipLosses || 0;
       
-      const rb = data.rakeback || { checkpointWager: 0, checkpointTipLoss: 0 };
+      const rb = data.rakeback || { checkpointWager: 0 };
       const eligibleWager = currentWager - (rb.checkpointWager || 0);
-      const eligibleTipLoss = currentTipLoss - (rb.checkpointTipLoss || 0);
 
-      let reward = (eligibleWager * 0.005);
-      if (eligibleTipLoss > 0) {
-        reward += (eligibleTipLoss * 0.03);
-      }
-      reward = Math.floor(reward);
+      let reward = Math.floor(eligibleWager * 0.005); // 0.50% max payout scaling upon claim[cite: 4]
 
       if (eligibleWager < 150 || reward <= 0) {
         throw new Error("No reward available to claim!");
@@ -1011,8 +979,7 @@ window.claimInstantRakeback = async () => {
 
       claimedAmount = reward;
       const updatedRakeback = {
-        checkpointWager: currentWager,
-        checkpointTipLoss: currentTipLoss
+        checkpointWager: currentWager // Reset checkpoint wager amount on claim[cite: 4]
       };
 
       t.update(userRef, {
