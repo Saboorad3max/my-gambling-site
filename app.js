@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, addDoc, onSnapshot, query, orderBy, limit, runTransaction, where, getDocs, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// Firebase Configuration[cite: 4]
+// Firebase Configuration
 const firebaseConfig = {
   apiKey: "AIzaSyBHZwUmzG9SZLLr6D3HZyY63gEwkr1PVkw",
   authDomain: "virtual-coins-90dcc.firebaseapp.com",
@@ -23,7 +23,7 @@ let housePoolData = { poolBalance: 10000, maxLossLimit: 5000 };
 let isGameProcessing = false;
 let isClaimProcessing = false;
 
-// --- TIP TOAST NOTIFICATIONS ---[cite: 4]
+// --- TIP TOAST NOTIFICATIONS ---
 function showTipNotification(message) {
   const toast = document.getElementById("tip-notification-toast");
   if (!toast) return;
@@ -59,7 +59,7 @@ function listenForTipNotifications() {
   });
 }
 
-// Helper function to calculate target win probability based on bet amount & house pool status[cite: 4]
+// Helper function to calculate target win probability based on bet amount & house pool status
 function getWinChance(bet) {
   if (housePoolData.poolBalance <= -housePoolData.maxLossLimit) {
     return 0; 
@@ -70,7 +70,7 @@ function getWinChance(bet) {
   return 0.30;                     
 }
 
-// --- DAILY WAGER LEADERBOARD LOGIC ---[cite: 4]
+// --- DAILY WAGER LEADERBOARD LOGIC ---
 function startLeaderboardTimer() {
   const timerEl = document.getElementById('leaderboard-timer');
   if (!timerEl) return;
@@ -127,7 +127,7 @@ function listenForLeaderboard() {
   });
 }
 
-// --- AUTHENTICATION ---[cite: 4]
+// --- AUTHENTICATION ---
 document.getElementById("btn-signup")?.addEventListener("click", async () => {
   const email = document.getElementById("auth-email").value.trim();
   const password = document.getElementById("auth-password").value;
@@ -206,7 +206,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// --- TAB NAVIGATION ---[cite: 4]
+// --- TAB NAVIGATION ---
 document.querySelectorAll(".tab-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -216,7 +216,7 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
   });
 });
 
-// --- GAME LOBBY ROUTING ---[cite: 4]
+// --- GAME LOBBY ROUTING ---
 window.openGame = (gameId) => {
   document.getElementById("games-lobby").classList.add("hidden");
   document.querySelectorAll(".game-stage").forEach(el => el.classList.add("hidden"));
@@ -230,7 +230,7 @@ window.closeGame = () => {
   document.getElementById("games-lobby").classList.remove("hidden");
 };
 
-// --- 3D ANIMATED COINFLIP ---[cite: 4]
+// --- 3D ANIMATED COINFLIP ---
 window.play3DCoinflip = async (choice) => {
   if (isGameProcessing) return;
   
@@ -292,7 +292,7 @@ window.play3DCoinflip = async (choice) => {
   }, 3000);
 };
 
-// --- DICE GAME ---[cite: 4]
+// --- DICE GAME ---
 window.playDice = async () => {
   if (isGameProcessing) return;
 
@@ -360,7 +360,7 @@ window.playDice = async () => {
   }
 };
 
-// --- BLACKJACK GAME ---[cite: 4]
+// --- BLACKJACK GAME ---
 let bjDeck = [], playerHand = [], dealerHand = [], bjBetAmount = 0, bjIsForcedLoss = false;
 
 function createDeck() {
@@ -495,7 +495,7 @@ window.standBlackjack = async () => {
   }
 };
 
-// --- CHAT & TIPPING ---[cite: 4]
+// --- CHAT & TIPPING ---
 const chatInput = document.getElementById("chat-input");
 document.getElementById("btn-send-chat")?.addEventListener("click", sendMessage);
 
@@ -578,7 +578,7 @@ document.getElementById("btn-confirm-tip")?.addEventListener("click", async () =
   }
 });
 
-// --- STORE MANAGEMENT ---[cite: 4]
+// --- STORE MANAGEMENT ---
 function loadStore() {
   onSnapshot(collection(db, "store"), (snap) => {
     const container = document.getElementById("store-list");
@@ -675,7 +675,7 @@ function loadStore() {
   });
 }
 
-// --- ITEM MODAL HANDLERS ---[cite: 4]
+// --- ITEM MODAL HANDLERS ---
 const itemModal = document.getElementById("item-modal");
 
 document.getElementById("btn-open-add-item")?.addEventListener("click", () => {
@@ -757,7 +757,7 @@ async function requestWithdraw(name, baseCost, totalCoinsSpent) {
   }
 }
 
-// --- ADMIN PANEL FUNCTIONS ---[cite: 4]
+// --- ADMIN PANEL FUNCTIONS ---
 function loadAdminPanel() {
   onSnapshot(collection(db, "users"), (snap) => {
     const list = document.getElementById("admin-user-list");
@@ -908,7 +908,12 @@ function renderRewardsPanel() {
   }
 
   if (claimBtn) {
-    if (isUnlocked) {
+    if (isClaimProcessing) {
+      claimBtn.style.background = "#374151";
+      claimBtn.style.color = "#9ca3af";
+      claimBtn.style.cursor = "not-allowed";
+      claimBtn.disabled = true;
+    } else if (isUnlocked) {
       claimBtn.style.background = "#10b981"; // Green when available
       claimBtn.style.color = "#fff";
       claimBtn.style.cursor = "pointer";
@@ -921,7 +926,7 @@ function renderRewardsPanel() {
     }
 
     // Assign direct click event safely
-    claimBtn.onclick = () => claimInstantRakeback(calculatedReward, currentWagered, currentLosses);
+    claimBtn.onclick = () => claimInstantRakeback();
   }
 
   // --- DAILY RAKEBACK COMING SOON CONFIG ---
@@ -941,12 +946,22 @@ function renderRewardsPanel() {
   }
 }
 
-window.claimInstantRakeback = async (rewardAmount, currentWagered, currentLosses) => {
-  if (!currentUser || rewardAmount <= 0) return;
+window.claimInstantRakeback = async () => {
+  if (!currentUser || isClaimProcessing) return;
+
+  isClaimProcessing = true;
+  const claimBtn = document.getElementById("btn-claim-instant");
+  if (claimBtn) {
+    claimBtn.disabled = true;
+    claimBtn.style.cursor = "not-allowed";
+    claimBtn.style.background = "#374151";
+  }
 
   const userRef = doc(db, "users", currentUser.uid);
 
   try {
+    let claimedAmount = 0;
+
     await runTransaction(db, async (t) => {
       const uDoc = await t.get(userRef);
       if (!uDoc.exists()) throw new Error("User data not found!");
@@ -954,21 +969,38 @@ window.claimInstantRakeback = async (rewardAmount, currentWagered, currentLosses
       const data = uDoc.data();
       const currentWager = data.wagered || 0;
       const currentLoss = data.totalLosses || 0;
+      
+      const rb = data.rakeback || { checkpointWager: 0, checkpointLoss: 0 };
+      const eligibleWager = currentWager - (rb.checkpointWager || 0);
+      const eligibleLoss = currentLoss - (rb.checkpointLoss || 0);
 
+      let reward = (eligibleWager * 0.005);
+      if (eligibleLoss > 0) {
+        reward += (eligibleLoss * 0.03);
+      }
+      reward = Math.floor(reward);
+
+      if (eligibleWager < 150 || reward <= 0) {
+        throw new Error("No reward available to claim!");
+      }
+
+      claimedAmount = reward;
       const updatedRakeback = {
         checkpointWager: currentWager,
         checkpointLoss: currentLoss
       };
 
       t.update(userRef, {
-        balance: increment(rewardAmount),
+        balance: increment(claimedAmount),
         rakeback: updatedRakeback
       });
     });
 
-    alert(`Successfully claimed ${rewardAmount} coins instant rakeback!`);
-    renderRewardsPanel();
+    alert(`Successfully claimed ${claimedAmount} coins instant rakeback!`);
   } catch (err) {
     alert(err.message);
+  } finally {
+    isClaimProcessing = false;
+    renderRewardsPanel();
   }
 };
