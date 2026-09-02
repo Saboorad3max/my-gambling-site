@@ -47,31 +47,26 @@
       <div id="games-lobby">
         <h3 class="section-title">Original Games</h3>
         <div class="games-grid">
-          <div class="game-card" data-game="coinflip" onclick="openGame('coinflip')">
+          <div class="game-card" onclick="openGame('coinflip')">
             <div class="card-badge">ORIGINAL</div>
             <div class="card-icon">🪙</div>
             <div class="card-title">COINFLIP</div>
           </div>
-          <div class="game-card" data-game="dice" onclick="openGame('dice')">
+          <div class="game-card" onclick="openGame('dice')">
             <div class="card-badge">ORIGINAL</div>
             <div class="card-icon">🎲</div>
             <div class="card-title">DICE</div>
           </div>
-          <div class="game-card" data-game="blackjack" onclick="openGame('blackjack')">
+          <div class="game-card" onclick="openGame('blackjack')">
             <div class="card-badge">ORIGINAL</div>
             <div class="card-icon">🃏</div>
             <div class="card-title">BLACKJACK</div>
-          </div>
-          <div class="game-card" data-game="roulette" onclick="openGame('roulette')">
-            <div class="card-badge">ORIGINAL</div>
-            <div class="card-icon">🎡</div>
-            <div class="card-title">ROULETTE</div>
           </div>
         </div>
       </div>
 
       <div id="game-stage-coinflip" class="game-stage hidden">
-        <button id="btn-back-coinflip" class="btn-back" onclick="closeGame()">← Back to Games</button>
+        <button class="btn-back" onclick="closeGame()">← Back to Games</button>
         <div class="game-container">
           <h3 class="panel-title">Coinflip</h3>
           <div class="coin-wrapper">
@@ -83,8 +78,8 @@
           <div class="bet-controls">
             <input type="number" id="coinflip-bet" class="coin-input" placeholder="Bet Amount" min="1" max="25">
             <div class="game-buttons">
-              <button id="btn-flip-heads" class="btn-game btn-heads" onclick="play3DCoinflip('heads')">Flip Heads</button>
-              <button id="btn-flip-tails" class="btn-game btn-tails" onclick="play3DCoinflip('tails')">Flip Tails</button>
+              <button class="btn-game btn-heads" onclick="play3DCoinflip('heads')">Flip Heads</button>
+              <button class="btn-game btn-tails" onclick="play3DCoinflip('tails')">Flip Tails</button>
             </div>
           </div>
           <p id="coinflip-result" class="game-status-text"></p>
@@ -92,7 +87,7 @@
       </div>
 
       <div id="game-stage-dice" class="game-stage hidden">
-        <button id="btn-back-dice" class="btn-back" onclick="closeGame()">← Back to Games</button>
+        <button class="btn-back" onclick="closeGame()">← Back to Games</button>
         <div class="game-container">
           <h3 class="panel-title">Dice Roll</h3>
           <div id="dice-display" style="font-size: 3.5rem; margin: 12px 0;">🎲</div>
@@ -103,14 +98,14 @@
               <option value="3-4">Roll 3-4 (2.5x Payout)</option>
               <option value="5-6">Roll 5-6 (2.5x Payout)</option>
             </select>
-            <button id="btn-roll-dice" class="btn-game" style="background: #2563eb; color: #fff; margin-top: 10px; width: 100%;" onclick="playDice()">Roll Dice</button>
+            <button class="btn-game" style="background: #2563eb; color: #fff; margin-top: 10px; width: 100%;" onclick="playDice()">Roll Dice</button>
           </div>
           <p id="dice-result" class="game-status-text"></p>
         </div>
       </div>
 
       <div id="game-stage-blackjack" class="game-stage hidden">
-        <button id="btn-back-blackjack" class="btn-back" onclick="closeGame()">← Back to Games</button>
+        <button class="btn-back" onclick="closeGame()">← Back to Games</button>
         <div class="game-container">
           <h3 class="panel-title">Blackjack</h3>
           <div id="bj-table" style="width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; margin: 12px 0; text-align: left;">
@@ -132,45 +127,17 @@
           <div class="bet-controls">
             <input type="number" id="bj-bet" class="coin-input" placeholder="Bet Amount" min="1" max="30">
             <div id="bj-setup-btns" style="margin-top: 10px;">
-              <button id="btn-bj-deal" class="btn-game" style="background: #2563eb; color: #fff; width: 100%;" onclick="startBlackjack()">Deal Hand</button>
+              <button class="btn-game" style="background: #2563eb; color: #fff; width: 100%;" onclick="startBlackjack()">Deal Hand</button>
             </div>
             <div id="bj-action-btns" class="game-buttons hidden" style="margin-top: 10px;">
-              <button id="btn-bj-hit" class="btn-game" style="background: #059669; color: #fff;" onclick="hitBlackjack()">Hit</button>
-              <button id="btn-bj-stand" class="btn-game" style="background: #dc2626; color: #fff;" onclick="standBlackjack()">Stand</button>
+              <button class="btn-game" style="background: #059669; color: #fff;" onclick="hitBlackjack()">Hit</button>
+              <button class="btn-game" style="background: #dc2626; color: #fff;" onclick="standBlackjack()">Stand</button>
             </div>
           </div>
           <p id="bj-result" class="game-status-text"></p>
         </div>
       </div>
-
-     <div id="game-stage-roulette" class="game-stage hidden">
-        <button id="btn-back-roulette" class="btn-back" onclick="closeGame()">← Back to Games</button>
-        <div class="game-container" style="max-width: 480px;">
-          <h3 class="panel-title">Roulette</h3>
-          
-          <!-- Slider Visual Wrapper -->
-          <div class="roulette-slider-wrapper" style="position: relative; overflow: hidden; width: 100%; height: 90px; background: #0b0f17; border-radius: 12px; border: 1px solid #1f2937; margin: 16px 0;">
-            <!-- Center Arrow Indicator -->
-            <div style="position: absolute; top: 0; bottom: 0; left: 50%; width: 4px; background: #fbbf24; transform: translateX(-50%); z-index: 10; box-shadow: 0 0 10px #fbbf24;"></div>
-            <div style="position: absolute; top: 4px; left: 50%; transform: translateX(-50%); font-size: 0.75rem; color: #fbbf24; font-weight: bold; z-index: 10;">▼</div>
-            
-            <!-- Sliding Track -->
-            <div id="roulette-track" style="display: flex; gap: 6px; position: absolute; left: 0; top: 12px; height: 66px; transition: transform 4s cubic-bezier(0.15, 0.85, 0.15, 1);">
-              <!-- Dynamically populated or pre-rendered item blocks -->
-            </div>
-          </div>
-
-          <div class="bet-controls">
-            <input type="number" id="roulette-bet" class="coin-input" placeholder="Bet Amount" min="1" max="50">
-            <div class="game-buttons" style="margin-top: 8px;">
-              <button id="btn-roulette-red" class="btn-game" style="background: #dc2626; color: #fff;" onclick="playRoulette('red')">Red (2x)</button>
-              <button id="btn-roulette-black" class="btn-game" style="background: #1f2937; color: #fff;" onclick="playRoulette('black')">Black (2x)</button>
-              <button id="btn-roulette-green" class="btn-game" style="background: #059669; color: #fff;" onclick="playRoulette('green')">Green (14x)</button>
-            </div>
-          </div>
-          <p id="roulette-result" class="game-status-text"></p>
-        </div>
-      </div>
+    </section>
 
     <section id="tab-leaderboard" class="tab-content">
       <div class="panel-card">
@@ -183,11 +150,13 @@
 
     <section id="tab-rewards" class="tab-content">
       <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+        <!-- Gift Box Icon -->
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7;"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
         <h2 style="margin: 0; color: #ffffff; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em;">Your Rewards</h2>
       </div>
 
       <div class="games-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+        <!-- Instant Rakeback Card -->
         <div class="game-card" style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; display: flex; flex-direction: column; justify-content: space-between; text-align: left; height: auto; cursor: default; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px;">
             <span style="color: #ffffff; font-size: 1rem; font-weight: 600; padding-right: 12px;">Wager to Unlock</span>
@@ -196,6 +165,7 @@
           
           <div style="text-align: center; margin: 10px 0 32px 0;">
             <div style="margin-bottom: 16px; display: inline-flex; padding: 16px; background: rgba(168, 85, 247, 0.08); border-radius: 50%;">
+              <!-- Gift Box SVG matching Daily Rakeback -->
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7;"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
             </div>
             <h3 style="color: #ffffff; margin: 0; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em;">Instant Rakeback</h3>
@@ -207,6 +177,7 @@
           </div>
         </div>
 
+        <!-- Daily Rakeback Card -->
         <div class="game-card" style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; display: flex; flex-direction: column; justify-content: space-between; text-align: left; height: auto; cursor: default; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px;">
             <span style="color: #ffffff; font-size: 1rem; font-weight: 600; padding-right: 12px;">Claim Soon!</span>
@@ -215,6 +186,7 @@
           
           <div style="text-align: center; margin: 10px 0 32px 0;">
             <div style="margin-bottom: 16px; display: inline-flex; padding: 16px; background: rgba(168, 85, 247, 0.08); border-radius: 50%;">
+              <!-- Chest / Gift Box SVG -->
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7;"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
             </div>
             <h3 style="color: #ffffff; margin: 0; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em;">Daily Rakeback</h3>
@@ -312,7 +284,7 @@
       </div>
       <div style="margin-bottom: 16px;">
         <label style="display: block; font-size: 0.85rem; color: #9ca3af; margin-bottom: 4px;">Coins per Unit (Rate)</label>
-        <input type="number" id="item-modal-cost" placeholder="e.g., 20" class="coin-input" min="1">
+        <input type="number" id="item-modal-cost" placeholder="e.g., f.e., 20" class="coin-input" min="1">
       </div>
       <div class="modal-actions" style="display: flex; gap: 10px;">
         <button id="btn-save-item" class="btn-game" style="background: #059669; color: #fff; flex: 1;">Save</button>
