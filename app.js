@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection, addDoc, onSnapshot, query, orderBy, limit, runTransaction, where, getDocs, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// Firebase Configuration[cite: 4, 10]
+// Firebase Configuration[cite: 4]
 const firebaseConfig = {
   apiKey: "AIzaSyBHZwUmzG9SZLLr6D3HZyY63gEwkr1PVkw",
   authDomain: "virtual-coins-90dcc.firebaseapp.com",
@@ -22,7 +22,7 @@ let userData = null;
 let housePoolData = { poolBalance: 10000, maxLossLimit: 5000 };
 let isGameProcessing = false;
 
-// --- TIP TOAST NOTIFICATIONS ---[cite: 4, 10]
+// --- TIP TOAST NOTIFICATIONS ---[cite: 4]
 function showTipNotification(message) {
   const toast = document.getElementById("tip-notification-toast");
   if (!toast) return;
@@ -58,7 +58,7 @@ function listenForTipNotifications() {
   });
 }
 
-// Helper function to calculate target win probability based on bet amount & house pool status[cite: 4, 10]
+// Helper function to calculate target win probability based on bet amount & house pool status[cite: 4]
 function getWinChance(bet) {
   if (housePoolData.poolBalance <= -housePoolData.maxLossLimit) {
     return 0; 
@@ -69,7 +69,7 @@ function getWinChance(bet) {
   return 0.30;                     
 }
 
-// --- DAILY WAGER LEADERBOARD LOGIC ---[cite: 4, 10]
+// --- DAILY WAGER LEADERBOARD LOGIC ---[cite: 4]
 function startLeaderboardTimer() {
   const timerEl = document.getElementById('leaderboard-timer');
   if (!timerEl) return;
@@ -126,7 +126,7 @@ function listenForLeaderboard() {
   });
 }
 
-// --- AUTHENTICATION ---[cite: 4, 10]
+// --- AUTHENTICATION ---[cite: 4]
 document.getElementById("btn-signup")?.addEventListener("click", async () => {
   const email = document.getElementById("auth-email").value.trim();
   const password = document.getElementById("auth-password").value;
@@ -167,8 +167,7 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById("display-user").innerText = userData.username;
         document.getElementById("display-balance").innerText = userData.balance;
 
-        // Render milestones and rakeback panel dynamically on data sync
-        renderMilestones();
+        // Render rakeback panel dynamically on data sync
         renderRewardsPanel();
 
         if (userData.isAdmin || currentUser.email.toLowerCase() === "saboorezz@gmail.com") {
@@ -206,7 +205,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// --- TAB NAVIGATION ---[cite: 4, 10]
+// --- TAB NAVIGATION ---[cite: 4]
 document.querySelectorAll(".tab-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -216,7 +215,7 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
   });
 });
 
-// --- GAME LOBBY ROUTING ---[cite: 4, 10]
+// --- GAME LOBBY ROUTING ---[cite: 4]
 window.openGame = (gameId) => {
   document.getElementById("games-lobby").classList.add("hidden");
   document.querySelectorAll(".game-stage").forEach(el => el.classList.add("hidden"));
@@ -230,7 +229,7 @@ window.closeGame = () => {
   document.getElementById("games-lobby").classList.remove("hidden");
 };
 
-// --- 3D ANIMATED COINFLIP ---[cite: 4, 10]
+// --- 3D ANIMATED COINFLIP ---[cite: 4]
 window.play3DCoinflip = async (choice) => {
   if (isGameProcessing) return;
   
@@ -292,7 +291,7 @@ window.play3DCoinflip = async (choice) => {
   }, 3000);
 };
 
-// --- DICE GAME ---[cite: 4, 10]
+// --- DICE GAME ---[cite: 4]
 window.playDice = async () => {
   if (isGameProcessing) return;
 
@@ -360,7 +359,7 @@ window.playDice = async () => {
   }
 };
 
-// --- BLACKJACK GAME ---[cite: 4, 10]
+// --- BLACKJACK GAME ---[cite: 4]
 let bjDeck = [], playerHand = [], dealerHand = [], bjBetAmount = 0, bjIsForcedLoss = false;
 
 function createDeck() {
@@ -495,7 +494,7 @@ window.standBlackjack = async () => {
   }
 };
 
-// --- CHAT & TIPPING ---[cite: 4, 10]
+// --- CHAT & TIPPING ---[cite: 4]
 const chatInput = document.getElementById("chat-input");
 document.getElementById("btn-send-chat")?.addEventListener("click", sendMessage);
 
@@ -578,7 +577,7 @@ document.getElementById("btn-confirm-tip")?.addEventListener("click", async () =
   }
 });
 
-// --- STORE MANAGEMENT ---[cite: 4, 10]
+// --- STORE MANAGEMENT ---[cite: 4]
 function loadStore() {
   onSnapshot(collection(db, "store"), (snap) => {
     const container = document.getElementById("store-list");
@@ -675,7 +674,7 @@ function loadStore() {
   });
 }
 
-// --- ITEM MODAL HANDLERS ---[cite: 4, 10]
+// --- ITEM MODAL HANDLERS ---[cite: 4]
 const itemModal = document.getElementById("item-modal");
 
 document.getElementById("btn-open-add-item")?.addEventListener("click", () => {
@@ -757,7 +756,7 @@ async function requestWithdraw(name, baseCost, totalCoinsSpent) {
   }
 }
 
-// --- ADMIN PANEL FUNCTIONS ---[cite: 4, 10]
+// --- ADMIN PANEL FUNCTIONS ---[cite: 4]
 function loadAdminPanel() {
   onSnapshot(collection(db, "users"), (snap) => {
     const list = document.getElementById("admin-user-list");
@@ -871,111 +870,9 @@ window.rejectWithdraw = async (reqId, userId, refundCost) => {
   }
 };
 
-// --- MILESTONE REWARDS LOGIC ---[cite: 4, 10]
-const MILESTONE_TIERS = [
-  { id: 1, requiredWager: 1500, reward: 30, label: "Tier 1: 1,500 Wagered" },
-  { id: 2, requiredWager: 6000, reward: 60, label: "Tier 2: 6,000 Wagered" },
-  { id: 3, requiredWager: 16000, reward: 150, label: "Tier 3: 16,000 Wagered" }
-];
-
-function getThreeDayCycleId() {
-  const now = new Date();
-  const epochDays = Math.floor(now.getTime() / (1000 * 60 * 60 * 24));
-  return Math.floor(epochDays / 3);
-}
-
-function renderMilestones() {
-  const container = document.getElementById("milestones-container");
-  if (!container || !userData) return;
-
-  container.innerHTML = "";
-
-  const currentCycle = getThreeDayCycleId();
-  const userMilestones = userData.milestones || { cycleId: currentCycle, wageredInCycle: userData.wagered || 0, claimedTiers: [] };
-  
-  const wageredProgress = userMilestones.cycleId === currentCycle ? userMilestones.wageredInCycle : (userData.wagered || 0);
-  const claimedTiers = userMilestones.cycleId === currentCycle ? (userMilestones.claimedTiers || []) : [];
-
-  MILESTONE_TIERS.forEach(tier => {
-    const isClaimed = claimedTiers.includes(tier.id);
-    const isEligible = wageredProgress >= tier.requiredWager;
-
-    const card = document.createElement("div");
-    card.style.cssText = "background: #111827; border: 1px solid #1f2937; border-radius: 8px; padding: 16px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;";
-
-    let buttonHtml = "";
-    if (isClaimed) {
-      buttonHtml = `<button disabled style="background: #374151; color: #9ca3af; border: none; padding: 8px 16px; border-radius: 6px; cursor: not-allowed; font-weight: bold;">Claimed</button>`;
-    } else if (isEligible) {
-      buttonHtml = `<button onclick="claimMilestone(${tier.id}, ${tier.reward})" style="background: #10b981; color: #white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold;">Claim ${tier.reward} Coins</button>`;
-    } else {
-      buttonHtml = `<button disabled style="background: #1f2937; color: #6b7280; border: none; padding: 8px 16px; border-radius: 6px; cursor: not-allowed; font-weight: bold;">Locked</button>`;
-    }
-
-    const percentage = Math.min(100, Math.floor((wageredProgress / tier.requiredWager) * 100));
-
-    card.innerHTML = `
-      <div>
-        <h4 style="color: #fff; margin: 0 0 4px 0; font-size: 16px;">${tier.label}</h4>
-        <p style="color: #9ca3af; margin: 0 0 8px 0; font-size: 13px;">Reward: <span style="color: #3b82f6; font-weight: bold;">${tier.reward} Coins</span></p>
-        <div style="background: #1f2937; width: 200px; height: 8px; border-radius: 4px; overflow: hidden;">
-          <div style="background: #3b82f6; width: ${percentage}%; height: 100%; transition: width 0.3s ease;"></div>
-        </div>
-        <span style="color: #6b7280; font-size: 11px; margin-top: 2px; display: block;">Progress: ${wageredProgress} / ${tier.requiredWager} (${percentage}%)</span>
-      </div>
-      <div>
-        ${buttonHtml}
-      </div>
-    `;
-
-    container.appendChild(card);
-  });
-}
-
-window.claimMilestone = async (tierId, rewardAmount) => {
-  if (!currentUser) return;
-  const currentCycle = getThreeDayCycleId();
-  const userRef = doc(db, "users", currentUser.uid);
-
-  try {
-    await runTransaction(db, async (t) => {
-      const uDoc = await t.get(userRef);
-      if (!uDoc.exists()) throw new Error("User data not found!");
-
-      const data = uDoc.data();
-      let milestoneData = data.milestones || { cycleId: currentCycle, wageredInCycle: 0, claimedTiers: [] };
-
-      if (milestoneData.cycleId !== currentCycle) {
-        milestoneData = { cycleId: currentCycle, wageredInCycle: data.wagered || 0, claimedTiers: [] };
-      }
-
-      if (milestoneData.claimedTiers.includes(tierId)) {
-        throw new Error("Tier already claimed!");
-      }
-
-      const targetTier = MILESTONE_TIERS.find(tr => tr.id === tierId);
-      if (milestoneData.wageredInCycle < targetTier.requiredWager) {
-        throw new Error("Wager requirement not met yet!");
-      }
-
-      milestoneData.claimedTiers.push(tierId);
-
-      t.update(userRef, {
-        balance: data.balance + rewardAmount,
-        milestones: milestoneData
-      });
-    });
-
-    alert(`Successfully claimed ${rewardAmount} tokens!`);
-  } catch (err) {
-    alert(err.message);
-  }
-};
-
 // --- RAKEBACK SYSTEM LOGIC ---
 function renderRewardsPanel() {
-  const container = document.getElementById("rewards-container");
-  if (!container || !userData) return;
+  if (!userData) return;
 
   const userRakeback = userData.rakeback || { checkpointWager: 0, checkpointLoss: 0 };
   
@@ -999,7 +896,15 @@ function renderRewardsPanel() {
   const claimBtn = document.getElementById("btn-claim-instant");
 
   if (statusLabel) statusLabel.innerText = isUnlocked ? 'Ready to Claim' : 'Wager to Unlock';
-  if (amountDisplay) amountDisplay.innerText = `${calculatedReward} Coins`;
+  
+  if (amountDisplay) {
+    if (calculatedReward > 0) {
+      amountDisplay.style.display = "block";
+      amountDisplay.innerText = `${calculatedReward} Coins`;
+    } else {
+      amountDisplay.style.display = "none";
+    }
+  }
 
   if (claimBtn) {
     if (isUnlocked) {
@@ -1008,7 +913,7 @@ function renderRewardsPanel() {
       claimBtn.style.cursor = "pointer";
       claimBtn.disabled = false;
     } else {
-      claimBtn.style.background = "#2b3245"; // Grey when locked
+      claimBtn.style.background = "#374151"; // Grey when locked
       claimBtn.style.color = "#9ca3af";
       claimBtn.style.cursor = "not-allowed";
       claimBtn.disabled = true;
