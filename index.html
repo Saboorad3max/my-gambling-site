@@ -44,29 +44,24 @@
     </nav>
 
     <section id="tab-games" class="tab-content active">
-      
       <div id="games-lobby">
         <h3 class="section-title">Original Games</h3>
         <div class="games-grid">
-          
           <div class="game-card" onclick="openGame('coinflip')">
             <div class="card-badge">ORIGINAL</div>
             <div class="card-icon">🪙</div>
             <div class="card-title">COINFLIP</div>
           </div>
-
           <div class="game-card" onclick="openGame('dice')">
             <div class="card-badge">ORIGINAL</div>
             <div class="card-icon">🎲</div>
             <div class="card-title">DICE</div>
           </div>
-
           <div class="game-card" onclick="openGame('blackjack')">
             <div class="card-badge">ORIGINAL</div>
             <div class="card-icon">🃏</div>
             <div class="card-title">BLACKJACK</div>
           </div>
-
         </div>
       </div>
 
@@ -74,14 +69,12 @@
         <button class="btn-back" onclick="closeGame()">← Back to Games</button>
         <div class="game-container">
           <h3 class="panel-title">Coinflip</h3>
-          
           <div class="coin-wrapper">
             <div id="coin" class="coin">
               <div class="coin-face coin-heads">HEADS</div>
               <div class="coin-face coin-tails">TAILS</div>
             </div>
           </div>
-
           <div class="bet-controls">
             <input type="number" id="coinflip-bet" class="coin-input" placeholder="Bet Amount" min="1" max="25">
             <div class="game-buttons">
@@ -98,7 +91,6 @@
         <div class="game-container">
           <h3 class="panel-title">Dice Roll</h3>
           <div id="dice-display" style="font-size: 3.5rem; margin: 12px 0;">🎲</div>
-          
           <div class="bet-controls">
             <input type="number" id="dice-bet" class="coin-input" placeholder="Bet Amount" min="1" max="50">
             <select id="dice-target" class="coin-input" style="margin-top: 8px;">
@@ -116,7 +108,6 @@
         <button class="btn-back" onclick="closeGame()">← Back to Games</button>
         <div class="game-container">
           <h3 class="panel-title">Blackjack</h3>
-          
           <div id="bj-table" style="width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; margin: 12px 0; text-align: left;">
             <div style="background: #1f2937; padding: 12px; border-radius: 10px;">
               <span style="color: #9ca3af; font-size: 0.85rem;">DEALER HAND</span>
@@ -133,7 +124,6 @@
               </div>
             </div>
           </div>
-
           <div class="bet-controls">
             <input type="number" id="bj-bet" class="coin-input" placeholder="Bet Amount" min="1" max="30">
             <div id="bj-setup-btns" style="margin-top: 10px;">
@@ -147,7 +137,6 @@
           <p id="bj-result" class="game-status-text"></p>
         </div>
       </div>
-
     </section>
 
     <section id="tab-leaderboard" class="tab-content">
@@ -155,9 +144,7 @@
         <div class="panel-title">Daily Wager Leaderboard</div>
         <div id="leaderboard-timer" class="calc-output text-blue" style="margin-bottom: 12px;">Reset in: 24h 00m 00s</div>
         <div class="panel-subtitle" style="margin-bottom: 10px;">Prize Pool: 350 Coins (Split: 1st - 175 | 2nd - 105 | 3rd - 70)</div>
-        <div id="leaderboard-list" class="grid-container">
-          <!-- Dynamic rows injected via JS -->
-        </div>
+        <div id="leaderboard-list" class="grid-container"></div>
       </div>
     </section>
 
@@ -170,9 +157,7 @@
     <section id="tab-store" class="tab-content">
       <div class="store-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <h2 class="panel-title" style="margin: 0;">Withdraw Coins for Rewards</h2>
-        <button id="btn-open-add-item" class="btn-game admin-only hidden" style="background: #2563eb; color: #fff; width: auto; padding: 8px 16px;">
-          + Add Item
-        </button>
+        <button id="btn-open-add-item" class="btn-game admin-only hidden" style="background: #2563eb; color: #fff; width: auto; padding: 8px 16px;">+ Add Item</button>
       </div>
       <div id="store-list" class="grid-container"></div>
     </section>
@@ -191,8 +176,6 @@
 
     <section id="tab-admin" class="tab-content">
       <h2 class="panel-title">Admin Control Panel</h2>
-
-      <!-- House Reserve Pool Card -->
       <div class="panel-card admin-only">
         <h3 class="panel-subtitle">House Reserve Pool Settings</h3>
         <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 14px;">
@@ -205,19 +188,16 @@
             <h4 id="display-max-loss" style="color: #ef4444; margin: 4px 0 0 0; font-size: 1.25rem;">0 Coins</h4>
           </div>
         </div>
-
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           <input type="number" id="input-house-pool" class="coin-input" placeholder="Set Pool Balance" style="flex: 1; min-width: 140px;">
           <input type="number" id="input-max-loss" class="coin-input" placeholder="Set Max Loss Limit" style="flex: 1; min-width: 140px;">
           <button id="btn-save-pool" class="btn-game" style="background: #2563eb; color: #fff; width: auto; padding: 8px 16px;">Update Settings</button>
         </div>
       </div>
-
       <div class="panel-card">
         <h3 class="panel-subtitle">User Balances & Add/Remove Coins</h3>
         <div id="admin-user-list"></div>
       </div>
-
       <div class="panel-card">
         <h3 class="panel-subtitle">Pending Withdrawal Requests</h3>
         <div id="admin-withdraw-list"></div>
@@ -253,17 +233,14 @@
     <div class="modal-content panel-card" style="max-width: 400px; text-align: left;">
       <h3 id="item-modal-title" class="panel-title">Add Store Item</h3>
       <input type="hidden" id="item-modal-id">
-      
       <div style="margin-bottom: 12px;">
         <label style="display: block; font-size: 0.85rem; color: #9ca3af; margin-bottom: 4px;">Item Name / Unit</label>
         <input type="text" id="item-modal-name" placeholder="e.g., iphone per min" class="coin-input">
       </div>
-
       <div style="margin-bottom: 16px;">
         <label style="display: block; font-size: 0.85rem; color: #9ca3af; margin-bottom: 4px;">Coins per Unit (Rate)</label>
         <input type="number" id="item-modal-cost" placeholder="e.g., 20" class="coin-input" min="1">
       </div>
-
       <div class="modal-actions" style="display: flex; gap: 10px;">
         <button id="btn-save-item" class="btn-game" style="background: #059669; color: #fff; flex: 1;">Save</button>
         <button id="btn-close-item-modal" class="btn-secondary" style="flex: 1;">Cancel</button>
