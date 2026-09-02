@@ -199,7 +199,7 @@ input:focus {
   text-align: right;
 }
 
-/* --- SHUFFLE LOBBY GRID --- */
+/* --- GAMES LOBBY GRID --- */
 .section-title {
   font-size: 1rem;
   font-weight: 700;
@@ -347,6 +347,38 @@ input:focus {
 .coin.animate-tails {
   transform: rotateY(1980deg);
 }
+
+/* --- ROULETTE HISTORY & REEL TILES (ADDED) --- */
+.roulette-history-item {
+  min-width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+.history-red { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); }
+.history-black { background: rgba(31, 41, 55, 0.6); color: #9ca3af; border: 1px solid rgba(55, 65, 81, 0.6); }
+.history-green { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); }
+.history-bait { background: rgba(59, 130, 246, 0.2); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.4); }
+
+.roulette-tile {
+  min-width: 84px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  border-right: 2px solid #05070b;
+  user-select: none;
+}
+.tile-red { background: linear-gradient(180deg, #f87171, #ef4444); color: #fff; }
+.tile-black { background: linear-gradient(180deg, #374151, #1f2937); color: #9ca3af; }
+.tile-green { background: linear-gradient(180deg, #34d399, #10b981); color: #fff; }
+.tile-bait { background: linear-gradient(180deg, #60a5fa, #3b82f6); color: #fff; }
 
 /* --- GAME CONTROLS --- */
 .bet-controls {
