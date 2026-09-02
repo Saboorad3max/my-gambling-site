@@ -229,8 +229,7 @@ window.closeGame = () => {
 
 // --- 3D ANIMATED COINFLIP ---
 window.play3DCoinflip = async (choice) => {
-  if (isGameProcessing) return[cite: 4];
-  
+  if (isGameProcessing) return; 
   const betInput = document.getElementById("coinflip-bet");
   const bet = parseInt(betInput.value);
   const resultText = document.getElementById("coinflip-result");
@@ -291,7 +290,7 @@ window.play3DCoinflip = async (choice) => {
 
 // --- DICE GAME (33% Win Chance) ---
 window.playDice = async () => {
-  if (isGameProcessing) return;
+  if (isGameProcessing) return;[cite: 4]
 
   const bet = parseInt(document.getElementById("dice-bet").value);
   const target = document.getElementById("dice-target").value;
@@ -332,7 +331,6 @@ window.playDice = async () => {
   const totalPayout = Math.floor(bet * multiplier);
   const netProfit = totalPayout - bet;
   
-  // If won, user gets their net profit added. If lost, they lose their bet.
   const netChange = won ? netProfit : -bet;
   const lossIncrement = !won ? bet : 0;
 
@@ -346,7 +344,6 @@ window.playDice = async () => {
       totalLosses: increment(lossIncrement)
     });
 
-    // House pool loses the net payout given to the user, or gains the user's lost bet
     const poolChange = won ? -netProfit : bet;
     await updateDoc(poolRef, {
       poolBalance: increment(poolChange)
