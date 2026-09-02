@@ -360,100 +360,6 @@ window.playDice = async () => {
   }
 };
 
-// --- ROULETTE GAME ---
-window.playRoulette = async (choice) => {
-  if (isGameProcessing) return;
-
-  const betInput = document.getElementById("roulette-bet");
-  const bet = parseInt(betInput.value);
-  const resultText = document.getElementById("roulette-result");
-  const wheelDisplay = document.getElementById("roulette-wheel-display");
-  const redBtn = document.getElementById("btn-roulette-red");
-  const blackBtn = document.getElementById("btn-roulette-black");
-
-  if (isNaN(bet) || bet < 1 || bet > userData.balance) {
-    return alert("Invalid bet amount or insufficient balance!");
-  }
-
-  isGameProcessing = true;
-
-  // Disable red/black color betting buttons during spin/processing to prevent concurrent conflict
-  if (redBtn) redBtn.disabled = true;
-  if (blackBtn) blackBtn.disabled = true;
-
-  resultText.innerText = "Spinning wheel...";
-  resultText.className = "game-status-text text-blue";
-
-  const winChance = getWinChance(bet);
-  const won = Math.random() < winChance;
-
-  const redNumbers = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
-  let winningPocket;
-
-  if (won) {
-    if (choice === "red") {
-      winningPocket = redNumbers[Math.floor(Math.random() * redNumbers.length)];
-    } else if (choice === "black") {
-      const blackNumbers = Array.from({ length: 36 }, (_, i) => i + 1).filter(n => !redNumbers.includes(n));
-      winningPocket = blackNumbers[Math.floor(Math.random() * blackNumbers.length)];
-    } else if (choice === "green") {
-      winningPocket = 0;
-    } else {
-      winningPocket = redNumbers[0];
-    }
-  } else {
-    if (choice === "red") {
-      winningPocket = 0;
-    } else {
-      winningPocket = redNumbers[0];
-    }
-  }
-
-  const isRed = redNumbers.includes(winningPocket);
-  const colorName = winningPocket === 0 ? "Green (0)" : (isRed ? "Red" : "Black");
-
-  const multiplier = choice === "green" ? 14 : 2;
-  const netProfit = won ? Math.floor(bet * multiplier) - bet : -bet;
-  const netChange = won ? netProfit : -bet;
-  const lossIncrement = !won ? bet : 0;
-
-  setTimeout(async () => {
-    if (wheelDisplay) {
-      wheelDisplay.innerText = `Pocket: ${winningPocket} (${colorName})`;
-    }
-
-    try {
-      const userRef = doc(db, "users", currentUser.uid);
-      const poolRef = doc(db, "settings", "housePool");
-
-      await updateDoc(userRef, {
-        balance: increment(netChange),
-        wagered: increment(bet),
-        totalLosses: increment(lossIncrement)
-      });
-
-      await updateDoc(poolRef, {
-        poolBalance: increment(-netChange)
-      });
-
-      if (won) {
-        resultText.innerText = `🎉 Ball landed on ${winningPocket} (${colorName})! You won ${Math.floor(bet * multiplier)} coins!`;
-        resultText.className = "game-status-text text-green";
-      } else {
-        resultText.innerText = `❌ Ball landed on ${winningPocket} (${colorName}). You lost ${bet} coins.`;
-        resultText.className = "game-status-text text-red";
-      }
-    } catch (err) {
-        resultText.innerText = `⚠️ ${err.message}`;
-        resultText.className = "game-status-text text-red";
-    } finally {
-      isGameProcessing = false;
-      if (redBtn) redBtn.disabled = false;
-      if (blackBtn) blackBtn.disabled = false;
-    }
-  }, 2500);
-};
-
 // --- BLACKJACK GAME ---
 let bjDeck = [], playerHand = [], dealerHand = [], bjBetAmount = 0, bjIsForcedLoss = false;
 
@@ -1098,4 +1004,3 @@ window.claimInstantRakeback = async () => {
     renderRewardsPanel();
   }
 };
-```[cite: 1]
