@@ -21,6 +21,7 @@ let currentUser = null;
 let userData = null;
 let housePoolData = { poolBalance: 10000, maxLossLimit: 5000 };
 let isGameProcessing = false;
+let isClaimProcessing = false;
 
 // --- TIP TOAST NOTIFICATIONS ---[cite: 4]
 function showTipNotification(message) {
@@ -907,25 +908,29 @@ function renderRewardsPanel() {
   }
 
   if (claimBtn) {
-    if (isUnlocked) {
+    // Keep button disabled if a claim transaction is currently processing
+    if (isUnlocked && !isClaimProcessing) {
       claimBtn.style.background = "#10b981"; // Green when available
       claimBtn.style.color = "#fff";
       claimBtn.style.cursor = "pointer";
       claimBtn.disabled = false;
     } else {
-      claimBtn.style.background = "#374151"; // Grey when locked
+      claimBtn.style.background = "#374151"; // Grey when locked or processing
       claimBtn.style.color = "#9ca3af";
       claimBtn.style.cursor = "not-allowed";
       claimBtn.disabled = true;
     }
 
     // Assign direct click event safely
-    claimBtn.onclick = () => claimInstantRakeback(calculatedReward, currentWagered, currentLosses);
+    claimBtn.onclick = () => claimInstantRakeback(calculatedReward);
   }
 }
 
-window.claimInstantRakeback = async (rewardAmount, currentWagered, currentLosses) => {
-  if (!currentUser || rewardAmount <= 0) return;
+window.claimInstantRakeback = async (rewardAmount) => {
+  if (!currentUser || rewardAmount <= 0 || isClaimProcessing) return;
+
+  isClaimProcessing = true;
+  renderRewardsPanel(); // Immediately grays out the button
 
   const userRef = doc(db, "users", currentUser.uid);
 
@@ -938,20 +943,33 @@ window.claimInstantRakeback = async (rewardAmount, currentWagered, currentLosses
       const currentWager = data.wagered || 0;
       const currentLoss = data.totalLosses || 0;
 
+      // Double-check inside transaction bounds to ensure no stale reward gets claimed twice
+      const lastRakeback = data.rakeback || { checkpointWager: 0, checkpointLoss: 0 };
+      const freshEligibleWager = currentWager - lastRakeback.checkpointWager;
+      const freshEligibleLoss = currentLoss - lastRakeback.checkpointLoss;
+      
+      let freshReward = (freshEligibleWager * 0.005);
+      if (freshEligibleLoss > 0) freshReward += (freshEligibleLoss * 0.03);
+      freshReward = Math.floor(freshReward);
+
+      if (freshReward <= 0) throw new Error("No reward available to claim!");
+
       const updatedRakeback = {
         checkpointWager: currentWager,
         checkpointLoss: currentLoss
       };
 
       t.update(userRef, {
-        balance: increment(rewardAmount),
+        balance: increment(freshReward),
         rakeback: updatedRakeback
       });
     });
 
-    alert(`Successfully claimed ${rewardAmount} coins instant rakeback!`);
-    renderRewardsPanel();
+    alert(`Successfully claimed instant rakeback!`);
   } catch (err) {
     alert(err.message);
+  } finally {
+    isClaimProcessing = false;
+    renderRewardsPanel();
   }
 };
