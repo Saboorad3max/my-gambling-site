@@ -154,9 +154,9 @@
         <h2 class="panel-title" style="margin: 0; color: #fff; font-size: 1.25rem;">Your rewards</h2>
       </div>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+      <div class="games-grid">
         <!-- Instant Rakeback Card -->
-        <div class="panel-card" style="background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; text-align: left;">
+        <div class="game-card" style="display: flex; flex-direction: column; justify-content: space-between; text-align: left; height: auto; cursor: default; padding: 20px;">
           <div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
               <span id="instant-status-label" style="color: #fff; font-weight: bold; font-size: 1.05rem;">Wager to Unlock</span>
@@ -176,7 +176,7 @@
         </div>
 
         <!-- Daily Rakeback Card -->
-        <div class="panel-card" style="background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; text-align: left;">
+        <div class="game-card" style="display: flex; flex-direction: column; justify-content: space-between; text-align: left; height: auto; cursor: default; padding: 20px;">
           <div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
               <span id="daily-status-label" style="color: #fff; font-weight: bold; font-size: 1.05rem;">Claim Soon!</span>
@@ -190,7 +190,7 @@
             </div>
           </div>
           <div>
-            <button id="btn-claim-daily" style="width: 100%; background: #374151; color: #9ca3af; border: none; padding: 12px; border-radius: 8px; cursor: not-allowed; font-weight: bold; font-size: 0.95rem;" disabled>Coming Soon</button>
+            <button id="btn-claim-daily" style="width: 100%; background: #374151; color: #9ca3af; border: none; padding: 12px; border-radius: 8px; cursor: not-allowed; font-weight: bold; font-size: 0.95rem;" disabled>12h 12m</button>
           </div>
         </div>
       </div>
@@ -281,7 +281,7 @@
       </div>
       <div style="margin-bottom: 16px;">
         <label style="display: block; font-size: 0.85rem; color: #9ca3af; margin-bottom: 4px;">Coins per Unit (Rate)</label>
-        <input type="number" id="item-modal-cost" placeholder="e.g., 20" class="coin-input" min="1">
+        <input type="number" id="item-modal-cost" placeholder="e.g., f.e., 20" class="coin-input" min="1">
       </div>
       <div class="modal-actions" style="display: flex; gap: 10px;">
         <button id="btn-save-item" class="btn-game" style="background: #059669; color: #fff; flex: 1;">Save</button>
