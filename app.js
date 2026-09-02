@@ -59,15 +59,12 @@ function listenForTipNotifications() {
   });
 }
 
-// Helper function to calculate target win probability based on bet amount & house pool status
+// Helper function to calculate target win probability based on house pool status (50% win chance across all games while house pool has balance)[cite: 4]
 function getWinChance(bet) {
-  if (housePoolData.poolBalance <= -housePoolData.maxLossLimit) {
+  if (housePoolData.poolBalance <= 0) {
     return 0; 
   }
-
-  if (bet < 10) return 0.40;       
-  if (bet > 20) return 0.25;       
-  return 0.30;                     
+  return 0.50;                     
 }
 
 // --- DAILY WAGER LEADERBOARD LOGIC ---
@@ -232,7 +229,7 @@ window.closeGame = () => {
 
 // --- 3D ANIMATED COINFLIP ---
 window.play3DCoinflip = async (choice) => {
-  if (isGameProcessing) return;
+  if (isGameProcessing) return[cite: 4];
   
   const betInput = document.getElementById("coinflip-bet");
   const bet = parseInt(betInput.value);
@@ -294,7 +291,7 @@ window.play3DCoinflip = async (choice) => {
 
 // --- DICE GAME ---
 window.playDice = async () => {
-  if (isGameProcessing) return;
+  if (isGameProcessing) return[cite: 4];
 
   const bet = parseInt(document.getElementById("dice-bet").value);
   const target = document.getElementById("dice-target").value;
@@ -404,7 +401,7 @@ function endBJ(msg, colorClass) {
 }
 
 window.startBlackjack = async () => {
-  if (isGameProcessing) return;
+  if (isGameProcessing) return[cite: 4];
 
   bjBetAmount = parseInt(document.getElementById('bj-bet').value);
   const resultText = document.getElementById('bj-result');
