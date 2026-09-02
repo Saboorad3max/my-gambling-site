@@ -47,22 +47,22 @@
       <div id="games-lobby">
         <h3 class="section-title">Original Games</h3>
         <div class="games-grid">
-          <div class="game-card" data-game="coinflip">
+          <div class="game-card" data-game="coinflip" onclick="openGame('coinflip')">
             <div class="card-badge">ORIGINAL</div>
             <div class="card-icon">🪙</div>
             <div class="card-title">COINFLIP</div>
           </div>
-          <div class="game-card" data-game="dice">
+          <div class="game-card" data-game="dice" onclick="openGame('dice')">
             <div class="card-badge">ORIGINAL</div>
             <div class="card-icon">🎲</div>
             <div class="card-title">DICE</div>
           </div>
-          <div class="game-card" data-game="blackjack">
+          <div class="game-card" data-game="blackjack" onclick="openGame('blackjack')">
             <div class="card-badge">ORIGINAL</div>
             <div class="card-icon">🃏</div>
             <div class="card-title">BLACKJACK</div>
           </div>
-          <div class="game-card" data-game="roulette">
+          <div class="game-card" data-game="roulette" onclick="openGame('roulette')">
             <div class="card-badge">ORIGINAL</div>
             <div class="card-icon">🎡</div>
             <div class="card-title">ROULETTE</div>
@@ -71,7 +71,7 @@
       </div>
 
       <div id="game-stage-coinflip" class="game-stage hidden">
-        <button id="btn-back-coinflip" class="btn-back">← Back to Games</button>
+        <button id="btn-back-coinflip" class="btn-back" onclick="closeGame()">← Back to Games</button>
         <div class="game-container">
           <h3 class="panel-title">Coinflip</h3>
           <div class="coin-wrapper">
@@ -83,8 +83,8 @@
           <div class="bet-controls">
             <input type="number" id="coinflip-bet" class="coin-input" placeholder="Bet Amount" min="1" max="25">
             <div class="game-buttons">
-              <button id="btn-flip-heads" class="btn-game btn-heads">Flip Heads</button>
-              <button id="btn-flip-tails" class="btn-game btn-tails">Flip Tails</button>
+              <button id="btn-flip-heads" class="btn-game btn-heads" onclick="play3DCoinflip('heads')">Flip Heads</button>
+              <button id="btn-flip-tails" class="btn-game btn-tails" onclick="play3DCoinflip('tails')">Flip Tails</button>
             </div>
           </div>
           <p id="coinflip-result" class="game-status-text"></p>
@@ -92,7 +92,7 @@
       </div>
 
       <div id="game-stage-dice" class="game-stage hidden">
-        <button id="btn-back-dice" class="btn-back">← Back to Games</button>
+        <button id="btn-back-dice" class="btn-back" onclick="closeGame()">← Back to Games</button>
         <div class="game-container">
           <h3 class="panel-title">Dice Roll</h3>
           <div id="dice-display" style="font-size: 3.5rem; margin: 12px 0;">🎲</div>
@@ -103,14 +103,14 @@
               <option value="3-4">Roll 3-4 (2.5x Payout)</option>
               <option value="5-6">Roll 5-6 (2.5x Payout)</option>
             </select>
-            <button id="btn-roll-dice" class="btn-game" style="background: #2563eb; color: #fff; margin-top: 10px; width: 100%;">Roll Dice</button>
+            <button id="btn-roll-dice" class="btn-game" style="background: #2563eb; color: #fff; margin-top: 10px; width: 100%;" onclick="playDice()">Roll Dice</button>
           </div>
           <p id="dice-result" class="game-status-text"></p>
         </div>
       </div>
 
       <div id="game-stage-blackjack" class="game-stage hidden">
-        <button id="btn-back-blackjack" class="btn-back">← Back to Games</button>
+        <button id="btn-back-blackjack" class="btn-back" onclick="closeGame()">← Back to Games</button>
         <div class="game-container">
           <h3 class="panel-title">Blackjack</h3>
           <div id="bj-table" style="width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 14px; margin: 12px 0; text-align: left;">
@@ -132,11 +132,11 @@
           <div class="bet-controls">
             <input type="number" id="bj-bet" class="coin-input" placeholder="Bet Amount" min="1" max="30">
             <div id="bj-setup-btns" style="margin-top: 10px;">
-              <button id="btn-bj-deal" class="btn-game" style="background: #2563eb; color: #fff; width: 100%;">Deal Hand</button>
+              <button id="btn-bj-deal" class="btn-game" style="background: #2563eb; color: #fff; width: 100%;" onclick="startBlackjack()">Deal Hand</button>
             </div>
             <div id="bj-action-btns" class="game-buttons hidden" style="margin-top: 10px;">
-              <button id="btn-bj-hit" class="btn-game" style="background: #059669; color: #fff;">Hit</button>
-              <button id="btn-bj-stand" class="btn-game" style="background: #dc2626; color: #fff;">Stand</button>
+              <button id="btn-bj-hit" class="btn-game" style="background: #059669; color: #fff;" onclick="hitBlackjack()">Hit</button>
+              <button id="btn-bj-stand" class="btn-game" style="background: #dc2626; color: #fff;" onclick="standBlackjack()">Stand</button>
             </div>
           </div>
           <p id="bj-result" class="game-status-text"></p>
@@ -144,16 +144,16 @@
       </div>
 
       <div id="game-stage-roulette" class="game-stage hidden">
-        <button id="btn-back-roulette" class="btn-back">← Back to Games</button>
+        <button id="btn-back-roulette" class="btn-back" onclick="closeGame()">← Back to Games</button>
         <div class="game-container">
           <h3 class="panel-title">Roulette</h3>
-          <div id="roulette-display" style="font-size: 3rem; margin: 12px 0;">🎡</div>
+          <div id="roulette-wheel-display" style="font-size: 2rem; margin: 12px 0;">Table Ready - Place a bet to start 10s timer</div>
           <div class="bet-controls">
             <input type="number" id="roulette-bet" class="coin-input" placeholder="Bet Amount" min="1" max="50">
             <div class="game-buttons" style="margin-top: 8px;">
-              <button id="btn-roulette-red" class="btn-game" style="background: #dc2626; color: #fff;">Red (2x)</button>
-              <button id="btn-roulette-black" class="btn-game" style="background: #1f2937; color: #fff;">Black (2x)</button>
-              <button id="btn-roulette-green" class="btn-game" style="background: #059669; color: #fff;">Green (14x)</button>
+              <button id="btn-roulette-red" class="btn-game" style="background: #dc2626; color: #fff;" onclick="placeRouletteBet('red')">Red (2x)</button>
+              <button id="btn-roulette-black" class="btn-game" style="background: #1f2937; color: #fff;" onclick="placeRouletteBet('black')">Black (2x)</button>
+              <button id="btn-roulette-green" class="btn-game" style="background: #059669; color: #fff;" onclick="placeRouletteBet('green')">Green (14x)</button>
             </div>
           </div>
           <p id="roulette-result" class="game-status-text"></p>
@@ -301,7 +301,7 @@
       </div>
       <div style="margin-bottom: 16px;">
         <label style="display: block; font-size: 0.85rem; color: #9ca3af; margin-bottom: 4px;">Coins per Unit (Rate)</label>
-        <input type="number" id="item-modal-cost" placeholder="e.g., f.e., 20" class="coin-input" min="1">
+        <input type="number" id="item-modal-cost" placeholder="e.g., 20" class="coin-input" min="1">
       </div>
       <div class="modal-actions" style="display: flex; gap: 10px;">
         <button id="btn-save-item" class="btn-game" style="background: #059669; color: #fff; flex: 1;">Save</button>
