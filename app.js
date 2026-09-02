@@ -363,8 +363,8 @@ window.playDice = async () => {
 // --- ROULETTE GAME (10-Sec Window & Live Spin Animation) ---
 let rouletteTimer = null;
 let rouletteSecondsLeft = 10;
-let rouletteState = "idle"; // "idle", "betting", "spinning"
-let rouletteBets = {}; // Store player choice and amount
+let rouletteState = "idle"; 
+let rouletteBets = {}; 
 
 window.placeRouletteBet = (choice) => {
   if (rouletteState === "spinning") return alert("Round is currently spinning! Please wait.");
@@ -377,12 +377,10 @@ window.placeRouletteBet = (choice) => {
     return alert("Invalid bet amount or insufficient balance!");
   }
 
-  // Lock in the bet for this round
   rouletteBets = { choice, bet };
   resultText.innerText = `Bet placed: ${bet} coins on ${choice.toUpperCase()}.`;
   resultText.className = "game-status-text text-blue";
 
-  // If we are currently idle, trigger the instant wake-up timer
   if (rouletteState === "idle") {
     startRouletteCountdown();
   }
@@ -392,9 +390,7 @@ function startRouletteCountdown() {
   rouletteState = "betting";
   rouletteSecondsLeft = 10;
   
-  const resultText = document.getElementById("roulette-result");
   const wheelDisplay = document.getElementById("roulette-wheel-display");
-
   if (rouletteTimer) clearInterval(rouletteTimer);
 
   rouletteTimer = setInterval(() => {
@@ -414,9 +410,9 @@ async function executeRouletteSpin() {
   rouletteState = "spinning";
   const resultText = document.getElementById("roulette-result");
   const wheelDisplay = document.getElementById("roulette-wheel-display");
+  const track = document.getElementById("roulette-track");
 
   if (!rouletteBets.bet) {
-    // Idle fallback check: If no bets were placed, reset to idle check
     if (wheelDisplay) wheelDisplay.innerText = "Table Idle - Waiting for bets...";
     if (resultText) {
       resultText.innerText = "No bets placed. Table sleeping...";
@@ -430,28 +426,7 @@ async function executeRouletteSpin() {
   resultText.innerText = "Wheel is spinning...";
   resultText.className = "game-status-text text-blue";
 
-  // Live spinning rolling animation simulation
-  let spinCounter = 0;
-  const redNumbers = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
-  
-  const rollInterval = setInterval(() => {
-    const randomPocket = Math.floor(Math.random() * 37);
-    const isRedTemp = redNumbers.includes(randomPocket);
-    const colorTemp = randomPocket === 0 ? "Green" : (isRedTemp ? "Red" : "Black");
-    if (wheelDisplay) wheelDisplay.innerText = `Rolling... ${randomPocket} (${colorTemp})`;
-    spinCounter++;
-    
-    if (spinCounter > 15) {
-      clearInterval(rollInterval);
-      finalizeRouletteOutcome(choice, bet);
-    }
-  }, 150);
-}
-
-async function finalizeRouletteOutcome(choice, bet) {
-  const resultText = document.getElementById("roulette-result");
-  const wheelDisplay = document.getElementById("roulette-wheel-display");
-
+  // 1. Determine Win/Loss using your criteria
   const winChance = getWinChance(bet);
   const won = Math.random() < winChance;
 
@@ -478,7 +453,48 @@ async function finalizeRouletteOutcome(choice, bet) {
   }
 
   const isRed = redNumbers.includes(winningPocket);
-  const colorName = winningPocket === 0 ? "Green (0)" : (isRed ? "Red" : "Black");
+  const winningColor = winningPocket === 0 ? "green" : (isRed ? "red" : "black");
+
+  // 2. Build the visual tiles track (50 items total, winning color locked at index 42)
+  const totalItems = 50;
+  const winningIndex = 42;
+  let trackHTML = '';
+  const poolColors = ['red', 'black', 'red', 'black', 'green'];
+
+  for (let i = 0; i < totalItems; i++) {
+    let col = (i === winningIndex) ? winningColor : poolColors[Math.floor(Math.random() * poolColors.length)];
+    let bg = col === 'red' ? '#dc2626' : col === 'black' ? '#1f2937' : '#059669';
+    let textLabel = col === 'green' ? '0' : col.toUpperCase();
+    trackHTML += `<div style="min-width: 70px; height: 66px; background: ${bg}; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; font-weight: bold; font-size: 0.9rem; text-transform: uppercase; border: 2px solid rgba(255,255,255,0.1);">${textLabel}</div>`;
+  }
+
+  track.innerHTML = trackHTML;
+  track.style.transition = 'none';
+  track.style.transform = 'translateX(0px)';
+  track.getBoundingClientRect(); // Force reflow
+
+  // 3. Trigger sliding animation
+  const itemWidth = 76; // 70px width + 6px gap
+  const wrapperWidth = document.querySelector('.roulette-slider-wrapper').offsetWidth;
+  const targetOffset = (winningIndex * itemWidth) - (wrapperWidth / 2) + (itemWidth / 2) + (Math.random() * 16 - 8);
+
+  setTimeout(() => {
+    track.style.transition = 'transform 4s cubic-bezier(0.08, 0.82, 0.12, 1)';
+    track.style.transform = `translateX(-${targetOffset}px)`;
+  }, 50);
+
+  // 4. Finalize outcome and database writes after transition finishes (~4.1s)
+  setTimeout(async () => {
+    await finalizeRouletteOutcome(choice, bet, winningPocket, winningColor, won);
+  }, 4100);
+}
+
+async function finalizeRouletteOutcome(choice, bet, winningPocket, winningColor, won) {
+  const resultText = document.getElementById("roulette-result");
+  const wheelDisplay = document.getElementById("roulette-wheel-display");
+
+  const redNumbers = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+  const colorName = winningPocket === 0 ? "Green (0)" : (redNumbers.includes(winningPocket) ? "Red" : "Black");
 
   const multiplier = choice === "green" ? 14 : 2;
   const netProfit = won ? Math.floor(bet * multiplier) - bet : -bet;
@@ -486,7 +502,7 @@ async function finalizeRouletteOutcome(choice, bet) {
   const lossIncrement = !won ? bet : 0;
 
   if (wheelDisplay) {
-    wheelDisplay.innerText = `Pocket: ${winningPocket} (${colorName})`;
+    wheelDisplay.innerText = `Landed on Pocket: ${winningPocket} (${colorName})`;
   }
 
   try {
@@ -514,10 +530,9 @@ async function finalizeRouletteOutcome(choice, bet) {
     resultText.innerText = `⚠️ ${err.message}`;
     resultText.className = "game-status-text text-red";
   } finally {
-    rouletteBets = {}; // Reset bets for next round
+    rouletteBets = {}; 
     rouletteState = "idle";
     
-    // Automatically trigger next cycle if player is still active or restart idle check
     if (wheelDisplay) {
       setTimeout(() => {
         if (rouletteState === "idle") {
