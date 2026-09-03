@@ -947,6 +947,17 @@ document.getElementById("btn-save-pool")?.addEventListener("click", async () => 
   }
 });
 
+document.getElementById("btn-test-leaderboard")?.addEventListener("click", async () => {
+  try {
+    const lbSettingsRef = doc(db, "settings", "leaderboard");
+    const newEndTime = Date.now(); // Expire immediately
+    await settleAndResetLeaderboard(lbSettingsRef, newEndTime);
+    alert("Leaderboard manually settled and reset!");
+  } catch (err) {
+    alert("Error triggering leaderboard: " + err.message);
+  }
+});
+
 window.viewUserStats = (uid, username, email, balance, wagered) => {
   document.getElementById("stats-username").innerText = `${username}'s Profile`;
   document.getElementById("stats-email").innerText = email;
