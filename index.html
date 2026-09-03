@@ -30,6 +30,10 @@
           <span id="display-user" class="username-text"></span>
           <span class="badge">Coins: <strong id="display-balance">0</strong></span>
         </div>
+        <!-- Notifications Bell Button -->
+        <button id="btn-open-notifications" class="btn-game" style="position: relative; background: #1f2937; color: #fff; padding: 6px 10px; width: auto; margin-right: 4px;" title="Notifications">
+          🔔 <span id="notif-badge" style="position: absolute; top: -4px; right: -4px; background: #ef4444; color: #fff; font-size: 10px; padding: 2px 5px; border-radius: 50%; display: none;">0</span>
+        </button>
         <button id="btn-logout" class="btn-danger">Logout</button>
       </div>
     </header>
@@ -141,9 +145,9 @@
 
     <section id="tab-leaderboard" class="tab-content">
       <div class="panel-card">
-        <div class="panel-title">Daily Wager Leaderboard</div>
+        <div class="panel-title">Isolated 24H Wager Leaderboard</div>
         <div id="leaderboard-timer" class="calc-output text-blue" style="margin-bottom: 12px;">Reset in: 24h 00m 00s</div>
-        <div class="panel-subtitle" style="margin-bottom: 10px;">Prize Pool: 350 Coins (Split: 1st - 175 | 2nd - 105 | 3rd - 70)</div>
+        <div class="panel-subtitle" style="margin-bottom: 10px;">Prize Pool: 500 Coins for Rank #1 Winner</div>
         <div id="leaderboard-list" class="grid-container"></div>
       </div>
     </section>
@@ -159,7 +163,7 @@
         <!-- Instant Rakeback Card -->
         <div class="game-card" style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; display: flex; flex-direction: column; justify-content: space-between; text-align: left; height: auto; cursor: default; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px;">
-            <span style="color: #ffffff; font-size: 1rem; font-weight: 600; padding-right: 12px;">Wager to Unlock</span>
+            <span id="instant-status-label" style="color: #ffffff; font-size: 1rem; font-weight: 600; padding-right: 12px;">Wager to Unlock</span>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7; flex-shrink: 0;"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
           </div>
           
@@ -180,7 +184,7 @@
         <!-- Daily Rakeback Card -->
         <div class="game-card" style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; display: flex; flex-direction: column; justify-content: space-between; text-align: left; height: auto; cursor: default; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px;">
-            <span style="color: #ffffff; font-size: 1rem; font-weight: 600; padding-right: 12px;">Claim Soon!</span>
+            <span id="daily-status-label" style="color: #ffffff; font-size: 1rem; font-weight: 600; padding-right: 12px;">Claim Soon!</span>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #a855f7; flex-shrink: 0;"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
           </div>
           
@@ -250,6 +254,19 @@
     </section>
   </div>
 
+  <!-- Notifications Modal -->
+  <div id="notifications-modal" class="modal hidden">
+    <div class="modal-content panel-card" style="max-width: 400px; text-align: left;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3 class="panel-title" style="margin: 0;">Notifications</h3>
+        <button id="btn-close-notif" style="background: none; border: none; color: #fff; font-size: 18px; cursor: pointer;">✕</button>
+      </div>
+      <div id="notifications-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; margin-bottom: 14px;">
+        <div style="color: #9ca3af; text-align: center; font-size: 12px; padding: 10px;">No new notifications</div>
+      </div>
+    </div>
+  </div>
+
   <div id="tip-modal" class="modal hidden">
     <div class="modal-content panel-card">
       <h3 class="panel-title">Tip Coins</h3>
@@ -284,7 +301,7 @@
       </div>
       <div style="margin-bottom: 16px;">
         <label style="display: block; font-size: 0.85rem; color: #9ca3af; margin-bottom: 4px;">Coins per Unit (Rate)</label>
-        <input type="number" id="item-modal-cost" placeholder="e.g., f.e., 20" class="coin-input" min="1">
+        <input type="number" id="item-modal-cost" placeholder="e.g., 20" class="coin-input" min="1">
       </div>
       <div class="modal-actions" style="display: flex; gap: 10px;">
         <button id="btn-save-item" class="btn-game" style="background: #059669; color: #fff; flex: 1;">Save</button>
@@ -296,3 +313,4 @@
   <script type="module" src="app.js"></script>
 </body>
 </html>
+```[cite: 5]
