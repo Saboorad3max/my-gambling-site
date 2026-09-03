@@ -154,12 +154,12 @@ function startLeaderboardTimer() {
   setInterval(updateTimer, 1000);
 }
 
-async function settleAndResetLeaderboard(lbSettingsRef, newEndTime) {
+async function settleAndResetLeaderboard(lbSettingsRef, newEndTime, forced = false) {
   try {
     await runTransaction(db, async (t) => {
       const freshSnap = await t.get(lbSettingsRef);
       const currentTime = Date.now();
-      if (freshSnap.exists() && freshSnap.data().endTime > currentTime) return;
+      if (!forced && freshSnap.exists() && freshSnap.data().endTime > currentTime) return;
 
       // 1. Fetch top 3 winners based on active round wagers
       const usersQuery = query(collection(db, "users"), orderBy("activeLeaderboardWager", "desc"), limit(3));
@@ -203,6 +203,18 @@ async function settleAndResetLeaderboard(lbSettingsRef, newEndTime) {
     console.error("Leaderboard payout/reset error:", err);
   }
 }
+
+// Bind developer manual test button click listener
+document.getElementById("btn-test-leaderboard")?.addEventListener("click", async () => {
+  try {
+    const lbSettingsRef = doc(db, "settings", "leaderboard");
+    const newEndTime = Date.now() + (24 * 60 * 60 * 1000);
+    await settleAndResetLeaderboard(lbSettingsRef, newEndTime, true);
+    alert("Leaderboard successfully settled and reset!");
+  } catch (err) {
+    alert(`Error resetting leaderboard: ${err.message}`);
+  }
+});
 
 function listenForLeaderboard() {
   const q = query(collection(db, "users"), orderBy("activeLeaderboardWager", "desc"), limit(10));
@@ -944,17 +956,6 @@ document.getElementById("btn-save-pool")?.addEventListener("click", async () => 
     alert("House Reserve Pool settings updated successfully!");
   } catch (err) {
     alert(`Error updating settings: ${err.message}`);
-  }
-});
-
-document.getElementById("btn-test-leaderboard")?.addEventListener("click", async () => {
-  try {
-    const lbSettingsRef = doc(db, "settings", "leaderboard");
-    const newEndTime = Date.now(); // Expire immediately
-    await settleAndResetLeaderboard(lbSettingsRef, newEndTime);
-    alert("Leaderboard manually settled and reset!");
-  } catch (err) {
-    alert("Error triggering leaderboard: " + err.message);
   }
 });
 
