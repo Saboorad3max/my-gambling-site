@@ -67,19 +67,81 @@ function getWinChance(bet) {
   return 0.50;                     
 }
 
-// --- DAILY WAGER LEADERBOARD LOGIC ---
+// --- NOTIFICATION UI & LOGIC ---
+document.getElementById("btn-open-notifications")?.addEventListener("click", () => {
+  const modal = document.getElementById("notifications-modal");
+  modal.classList.toggle("hidden");
+});
+
+document.getElementById("btn-close-notif")?.addEventListener("click", () => {
+  document.getElementById("notifications-modal").classList.add("hidden");
+});
+
+function listenForUserNotifications(uid) {
+  const notifRef = collection(db, "users", uid, "notifications");
+  const q = query(notifRef, orderBy("timestamp", "desc"));
+
+  onSnapshot(q, (snapshot) => {
+    const listEl = document.getElementById("notifications-list");
+    const badgeEl = document.getElementById("notif-badge");
+    if (!listEl) return;
+
+    listEl.innerHTML = "";
+    if (snapshot.empty) {
+      listEl.innerHTML = `<div style="color: #9ca3af; text-align: center; font-size: 12px; padding: 10px;">No new notifications</div>`;
+      if (badgeEl) badgeEl.style.display = "none";
+      return;
+    }
+
+    if (badgeEl) {
+      badgeEl.style.display = "inline-block";
+      badgeEl.innerText = snapshot.size;
+    }
+
+    snapshot.forEach((docSnap) => {
+      const notif = docSnap.data();
+      const item = document.createElement("div");
+      item.style.cssText = "background: #1f2937; padding: 8px 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;";
+      
+      item.innerHTML = `
+        <span style="color: #f3f4f6; word-break: break-word; flex: 1; margin-right: 8px;">${notif.message}</span>
+        <button onclick="deleteUserNotification('${docSnap.id}')" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 14px;" title="Delete">🗑️</button>
+      `;
+      listEl.appendChild(item);
+    });
+  });
+}
+
+window.deleteUserNotification = async (notifId) => {
+  if (!currentUser) return;
+  try {
+    await deleteDoc(doc(db, "users", currentUser.uid, "notifications", notifId));
+  } catch (err) {
+    console.error("Error deleting notification:", err);
+  }
+};
+
+// --- ISOLATED 24H LEADERBOARD & RESET LOGIC ---
 function startLeaderboardTimer() {
   const timerEl = document.getElementById('leaderboard-timer');
   if (!timerEl) return;
 
   const updateTimer = async () => {
-    const now = new Date();
-    const night = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
-    let diff = night - now;
+    const lbSettingsRef = doc(db, "settings", "leaderboard");
+    const lbSnap = await getDoc(lbSettingsRef);
+    
+    const now = Date.now();
+    let endTime;
 
-    if (diff <= 0) {
-      diff = 24 * 60 * 60 * 1000; 
+    if (!lbSnap.exists() || !lbSnap.data().endTime || lbSnap.data().endTime <= now) {
+      endTime = now + (24 * 60 * 60 * 1000); // 24 hours duration (change to now + 3600000 for 1 hour test)
+      await settleAndResetLeaderboard(lbSettingsRef, endTime);
+    } else {
+      endTime = lbSnap.data().endTime;
     }
+
+    let diff = endTime - now;
+    if (diff <= 0) diff = 0;
 
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
@@ -92,8 +154,53 @@ function startLeaderboardTimer() {
   setInterval(updateTimer, 1000);
 }
 
+async function settleAndResetLeaderboard(lbSettingsRef, newEndTime) {
+  try {
+    await runTransaction(db, async (t) => {
+      const freshSnap = await t.get(lbSettingsRef);
+      const currentTime = Date.now();
+      if (freshSnap.exists() && freshSnap.data().endTime > currentTime) return;
+
+      // 1. Fetch top winner based on active round wagers
+      const usersQuery = query(collection(db, "users"), orderBy("activeLeaderboardWager", "desc"), limit(1));
+      const userSnap = await getDocs(usersQuery);
+
+      if (!userSnap.empty) {
+        const topUserDoc = userSnap.docs[0];
+        const topUserData = topUserDoc.data();
+        const prizePoolReward = 500; // Reward amount for leaderboard winner
+
+        if ((topUserData.activeLeaderboardWager || 0) > 0) {
+          // Pay out winner balance
+          t.update(topUserDoc.ref, {
+            balance: increment(prizePoolReward)
+          });
+
+          // Send persistent notification to winner's sub-collection
+          const newNotifRef = doc(collection(db, "users", topUserDoc.id, "notifications"));
+          t.set(newNotifRef, {
+            message: `🏆 You won the Leaderboard and received ${prizePoolReward} coins!`,
+            timestamp: serverTimestamp()
+          });
+        }
+      }
+
+      // 2. Completely wipe/reset active leaderboard wagers to 0 for all users
+      const allUsersSnap = await getDocs(collection(db, "users"));
+      allUsersSnap.forEach((uDoc) => {
+        t.update(uDoc.ref, { activeLeaderboardWager: 0 });
+      });
+
+      // 3. Update expiration checkpoint
+      t.set(lbSettingsRef, { endTime: newEndTime }, { merge: true });
+    });
+  } catch (err) {
+    console.error("Leaderboard payout/reset error:", err);
+  }
+}
+
 function listenForLeaderboard() {
-  const q = query(collection(db, "users"), orderBy("wagered", "desc"), limit(10));
+  const q = query(collection(db, "users"), orderBy("activeLeaderboardWager", "desc"), limit(10));
   
   onSnapshot(q, (snapshot) => {
     const container = document.getElementById("leaderboard-list");
@@ -102,14 +209,14 @@ function listenForLeaderboard() {
     container.innerHTML = "";
     
     if (snapshot.empty) {
-      container.innerHTML = `<div style="color: #9ca3af; text-align: center; padding: 12px;">No wagers recorded yet.</div>`;
+      container.innerHTML = `<div style="color: #9ca3af; text-align: center; padding: 12px;">No wagers recorded yet for this round.</div>`;
       return;
     }
 
     let rank = 1;
     snapshot.forEach((docSnap) => {
       const uData = docSnap.data();
-      const wagerVal = uData.wagered || 0;
+      const wagerVal = uData.activeLeaderboardWager || 0;
 
       const row = document.createElement("div");
       row.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: #111827; padding: 10px 14px; border-radius: 6px; margin-bottom: 6px;";
@@ -137,7 +244,7 @@ document.getElementById("btn-signup")?.addEventListener("click", async () => {
     const isAdmin = email.toLowerCase() === "saboorezz@gmail.com";
     
     await setDoc(doc(db, "users", res.user.uid), {
-      email, username, balance: 0, wagered: 0, totalLosses: 0, isAdmin
+      email, username, balance: 0, wagered: 0, activeLeaderboardWager: 0, totalLosses: 0, isAdmin
     });
     alert("Account created successfully!");
   } catch (err) { alert(err.message); }
@@ -194,6 +301,7 @@ onAuthStateChanged(auth, async (user) => {
     loadStore();
     listenChat();
     listenForTipNotifications();
+    listenForUserNotifications(user.uid);
     startLeaderboardTimer();
     listenForLeaderboard();
   } else {
@@ -264,6 +372,7 @@ window.play3DCoinflip = async (choice) => {
       await updateDoc(userRef, {
         balance: increment(netChange),
         wagered: increment(bet),
+        activeLeaderboardWager: increment(bet),
         totalLosses: increment(regularLossIncrement)
       });
 
@@ -339,6 +448,7 @@ window.playDice = async () => {
     await updateDoc(userRef, {
       balance: increment(netChange),
       wagered: increment(bet),
+      activeLeaderboardWager: increment(bet),
       totalLosses: increment(regularLossIncrement)
     });
 
@@ -422,7 +532,8 @@ window.startBlackjack = async () => {
   bjIsForcedLoss = Math.random() >= winChance;
 
   await updateDoc(doc(db, "users", currentUser.uid), {
-    wagered: increment(bjBetAmount)
+    wagered: increment(bjBetAmount),
+    activeLeaderboardWager: increment(bjBetAmount)
   });
 
   bjDeck = createDeck();
@@ -574,6 +685,12 @@ document.getElementById("btn-confirm-tip")?.addEventListener("click", async () =
 
     await addDoc(collection(db, "tip_notifications"), {
       message: tipMsg,
+      timestamp: serverTimestamp()
+    });
+
+    // Also add persistent notification to target user sub-collection
+    await addDoc(collection(db, "users", targetDoc.id, "notifications"), {
+      message: isAdmin ? `🎁 Admin tipped you ${amount} coins!` : `🎁 ${userData.username} tipped you ${amount} coins!`,
       timestamp: serverTimestamp()
     });
 
