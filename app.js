@@ -134,7 +134,7 @@ function startLeaderboardTimer() {
     let endTime;
 
     if (!lbSnap.exists() || !lbSnap.data().endTime || lbSnap.data().endTime <= now) {
-      endTime = now + (24 * 60 * 60 * 1000); // 24 hours duration (change to now + 3600000 for 1 hour test)
+      endTime = now + (24 * 60 * 60 * 1000); // 24 hours duration
       await settleAndResetLeaderboard(lbSettingsRef, endTime);
     } else {
       endTime = lbSnap.data().endTime;
@@ -161,28 +161,33 @@ async function settleAndResetLeaderboard(lbSettingsRef, newEndTime) {
       const currentTime = Date.now();
       if (freshSnap.exists() && freshSnap.data().endTime > currentTime) return;
 
-      // 1. Fetch top winner based on active round wagers
-      const usersQuery = query(collection(db, "users"), orderBy("activeLeaderboardWager", "desc"), limit(1));
+      // 1. Fetch top 3 winners based on active round wagers
+      const usersQuery = query(collection(db, "users"), orderBy("activeLeaderboardWager", "desc"), limit(3));
       const userSnap = await getDocs(usersQuery);
 
       if (!userSnap.empty) {
-        const topUserDoc = userSnap.docs[0];
-        const topUserData = topUserDoc.data();
-        const prizePoolReward = 500; // Reward amount for leaderboard winner
+        const prizePoolRewards = [250, 150, 100]; // Split: 1st gets 250c, 2nd gets 150c, 3rd gets 100c
+        let rankIndex = 0;
 
-        if ((topUserData.activeLeaderboardWager || 0) > 0) {
-          // Pay out winner balance
-          t.update(topUserDoc.ref, {
-            balance: increment(prizePoolReward)
-          });
+        userSnap.forEach((topUserDoc) => {
+          const topUserData = topUserDoc.data();
+          const prizePoolReward = prizePoolRewards[rankIndex];
 
-          // Send persistent notification to winner's sub-collection
-          const newNotifRef = doc(collection(db, "users", topUserDoc.id, "notifications"));
-          t.set(newNotifRef, {
-            message: `🏆 You won the Leaderboard and received ${prizePoolReward} coins!`,
-            timestamp: serverTimestamp()
-          });
-        }
+          if ((topUserData.activeLeaderboardWager || 0) > 0) {
+            // Pay out winner balance
+            t.update(topUserDoc.ref, {
+              balance: increment(prizePoolReward)
+            });
+
+            // Send persistent notification to winner's sub-collection
+            const newNotifRef = doc(collection(db, "users", topUserDoc.id, "notifications"));
+            t.set(newNotifRef, {
+              message: `🏆 You finished Rank #${rankIndex + 1} on the Leaderboard and received ${prizePoolReward} coins!`,
+              timestamp: serverTimestamp()
+            });
+          }
+          rankIndex++;
+        });
       }
 
       // 2. Completely wipe/reset active leaderboard wagers to 0 for all users
@@ -1088,7 +1093,7 @@ window.claimInstantRakeback = async () => {
       const rb = data.rakeback || { checkpointWager: 0 };
       const eligibleWager = currentWager - (rb.checkpointWager || 0);
 
-      let reward = Math.floor(eligibleWager * 0.005); // 0.50% max payout scaling upon claim[cite: 4]
+      let reward = Math.floor(eligibleWager * 0.005); // 0.50% max payout scaling upon claim
 
       if (eligibleWager < 150 || reward <= 0) {
         throw new Error("No reward available to claim!");
@@ -1096,7 +1101,7 @@ window.claimInstantRakeback = async () => {
 
       claimedAmount = reward;
       const updatedRakeback = {
-        checkpointWager: currentWager // Reset checkpoint wager amount on claim[cite: 4]
+        checkpointWager: currentWager // Reset checkpoint wager amount on claim
       };
 
       t.update(userRef, {
