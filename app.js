@@ -365,54 +365,66 @@ window.play3DCoinflip = async (choice) => {
 
   isGameProcessing = true;
 
-  coin.style.transition = "none";
-  coin.className = "coin";
-  void coin.offsetWidth;
-  coin.style.transition = "transform 3s cubic-bezier(0.15, 0.85, 0.35, 1.2)";
+  try {
+    // Fetch current house pool balance first
+    const poolRef = doc(db, "settings", "housePool");
+    const poolSnap = await getDoc(poolRef);
+    const poolBalance = poolSnap.exists() ? (poolSnap.data().poolBalance || 0) : 0;
 
-  const winChance = getWinChance(bet);
-  const won = Math.random() < winChance;
-  
-  let outcome = won ? choice : (choice === "heads" ? "tails" : "heads");
-  const netChange = won ? bet : -bet;
-  const regularLossIncrement = (!won) ? bet : 0;
+    // Set win chance based on house pool balance
+    const winChance = poolBalance <= 0 ? 0 : 0.30;
 
-  coin.classList.add(outcome === "heads" ? "animate-heads" : "animate-tails");
-  resultText.innerText = "Flipping...";
-  resultText.className = "game-status-text text-blue";
+    coin.style.transition = "none";
+    coin.className = "coin";
+    void coin.offsetWidth;
+    coin.style.transition = "transform 3s cubic-bezier(0.15, 0.85, 0.35, 1.2)";
 
-  setTimeout(async () => {
-    try {
-      const userRef = doc(db, "users", currentUser.uid);
-      const poolRef = doc(db, "settings", "housePool");
+    const won = Math.random() < winChance;
+    
+    let outcome = won ? choice : (choice === "heads" ? "tails" : "heads");
+    const netChange = won ? bet : -bet;
+    const regularLossIncrement = (!won) ? bet : 0;
 
-      await updateDoc(userRef, {
-        balance: increment(netChange),
-        wagered: increment(bet),
-        activeLeaderboardWager: increment(bet),
-        totalLosses: increment(regularLossIncrement)
-      });
+    coin.classList.add(outcome === "heads" ? "animate-heads" : "animate-tails");
+    resultText.innerText = "Flipping...";
+    resultText.className = "game-status-text text-blue";
 
-      await updateDoc(poolRef, {
-        poolBalance: increment(-netChange)
-      });
+    setTimeout(async () => {
+      try {
+        const userRef = doc(db, "users", currentUser.uid);
 
-      if (won) {
-        resultText.innerText = `🎉 You Won! Flipped ${outcome.toUpperCase()}. (+${bet} coins)`;
-        resultText.className = "game-status-text text-green";
-      } else {
-        resultText.innerText = `❌ You Lost! Flipped ${outcome.toUpperCase()}. (-${bet} coins)`;
+        await updateDoc(userRef, {
+          balance: increment(netChange),
+          wagered: increment(bet),
+          activeLeaderboardWager: increment(bet),
+          totalLosses: increment(regularLossIncrement)
+        });
+
+        await updateDoc(poolRef, {
+          poolBalance: increment(-netChange)
+        });
+
+        if (won) {
+          resultText.innerText = `🎉 You Won! Flipped ${outcome.toUpperCase()}. (+${bet} coins)`;
+          resultText.className = "game-status-text text-green";
+        } else {
+          resultText.innerText = `❌ You Lost! Flipped ${outcome.toUpperCase()}. (-${bet} coins)`;
+          resultText.className = "game-status-text text-red";
+        }
+      } catch (err) {
+        resultText.innerText = `⚠️ ${err.message}`;
         resultText.className = "game-status-text text-red";
+      } finally {
+        isGameProcessing = false;
       }
-    } catch (err) {
-      resultText.innerText = `⚠️ ${err.message}`;
-      resultText.className = "game-status-text text-red";
-    } finally {
-      isGameProcessing = false;
-    }
-  }, 3000);
-};
+    }, 3000);
 
+  } catch (err) {
+    resultText.innerText = `⚠️ ${err.message}`;
+    resultText.className = "game-status-text text-red";
+    isGameProcessing = false;
+  }
+};
 // --- DICE GAME (33% Win Chance) ---
 window.playDice = async () => {
   if (isGameProcessing) return;
